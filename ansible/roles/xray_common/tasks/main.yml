@@ -1,0 +1,12 @@
+---
+- name: Install xray-maskanya binary + assets
+  ansible.builtin.import_tasks: install.yml
+  tags: [xray, xray_common, install]
+
+- name: Generate Reality keypair
+  ansible.builtin.import_tasks: reality_keygen.yml
+  tags: [xray, xray_common, keygen]
+
+- name: Deploy xray-maskanya systemd unit
+  ansible.builtin.import_tasks: service.yml
+  tags: [xray, xray_common, service]

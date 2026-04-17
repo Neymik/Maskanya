@@ -1,0 +1,18 @@
+# SOPS configuration for Maskanya secrets.
+#
+# Operator age keys live at ~/.config/sops/age/maskanya.txt (mode 0600).
+# Point sops/ansible at them:
+#   export SOPS_AGE_KEY_FILE="$HOME/.config/sops/age/maskanya.txt"
+#
+# To add another operator: append their age public key to each `age:` list below,
+# then `sops updatekeys secrets/*.yml`.
+
+creation_rules:
+  - path_regex: secrets/.*\.ya?ml$
+    age: >-
+      age16hvf0my6q7mxjhk7cd4z4509el05gl4plz0j6kufm0329eekfupqzhhl6p
+
+  - path_regex: ansible/inventory/production/host_vars/.*\.ya?ml$
+    encrypted_regex: "^(password|secret|token|api_key|private_key|privkey)$"
+    age: >-
+      age16hvf0my6q7mxjhk7cd4z4509el05gl4plz0j6kufm0329eekfupqzhhl6p

@@ -1,0 +1,38 @@
+---
+# Rotate Reality keypairs fleet-wide. After this runs the operator must commit
+# the new public keys printed by xray_common to host_vars and re-run
+# playbooks/site.yml so every entry's outbound picks up the fresh pubkey of
+# each exit it targets.
+#
+# You can scope this to a single host with `--limit <HostName>` if you only
+# want to rotate one node's keys (e.g. after a suspected compromise).
+
+- name: Rotate Reality keypairs
+  hosts: all
+  gather_facts: true
+  become: true
+
+  pre_tasks:
+    - name: Remove existing Reality private key
+      ansible.builtin.file:
+        path: "{{ xray_reality_private_key_path | default('/etc/xray/reality_private.key') }}"
+        state: absent
+
+    - name: Remove existing Reality public key
+      ansible.builtin.file:
+        path: "{{ xray_reality_public_key_path | default('/etc/xray/reality_public.key') }}"
+        state: absent
+
+  roles:
+    - xray_common   # regenerates the keys on the next run of reality_keygen.yml
+
+  post_tasks:
+    - name: Operator follow-up steps
+      ansible.builtin.debug:
+        msg:
+          - "Reality key rotation complete on {{ inventory_hostname }}."
+          - "Next steps:"
+          - "  1. Copy the freshly-printed Reality public key from the output above."
+          - "  2. Commit it to host_vars/{{ inventory_hostname }}.yml as reality_public_key."
+          - "  3. Update xray_exit_targets[].reality_public_key in every host_vars that forwards to this node."
+          - "  4. Run `make apply` so entries pick up the new outbound keys."

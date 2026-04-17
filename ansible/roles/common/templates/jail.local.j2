@@ -1,0 +1,17 @@
+{{ ansible_managed | comment }}
+
+[DEFAULT]
+bantime = 1h
+findtime = 10m
+maxretry = 5
+banaction = iptables-multiport
+backend = systemd
+
+[sshd]
+enabled = true
+port = {{ admin_ssh_port }}
+filter = sshd
+logpath = %(sshd_log)s
+backend = %(sshd_backend)s
+maxretry = 3
+bantime = 24h

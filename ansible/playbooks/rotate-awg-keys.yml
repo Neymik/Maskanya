@@ -1,0 +1,38 @@
+---
+# Rotate AmneziaWG keypairs fleet-wide. Operator must commit new public keys
+# and re-converge the hub so its peer list references the fresh pubkeys.
+
+- name: Rotate AmneziaWG keypairs
+  hosts: all
+  gather_facts: true
+  become: true
+
+  pre_tasks:
+    - name: Stop awg-quick before tearing down keys
+      ansible.builtin.systemd:
+        name: "awg-quick@{{ awg_interface }}"
+        state: stopped
+      failed_when: false
+
+    - name: Remove existing private key
+      ansible.builtin.file:
+        path: "{{ awg_private_key_path | default('/etc/amneziawg/maskanya_privatekey') }}"
+        state: absent
+
+    - name: Remove existing public key
+      ansible.builtin.file:
+        path: "{{ awg_public_key_path | default('/etc/amneziawg/maskanya_publickey') }}"
+        state: absent
+
+  roles:
+    - amneziawg   # regenerates + brings the interface back up
+
+  post_tasks:
+    - name: Operator follow-up steps
+      ansible.builtin.debug:
+        msg:
+          - "AWG key rotation complete on {{ inventory_hostname }}."
+          - "Next steps:"
+          - "  1. Copy the printed awg_public_key for this host."
+          - "  2. Commit it to host_vars/{{ inventory_hostname }}.yml as awg_public_key."
+          - "  3. Re-run `make apply` so the hub picks up the new peer key."

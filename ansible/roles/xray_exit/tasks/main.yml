@@ -1,0 +1,21 @@
+---
+- name: Render xray config.json (exit role)
+  ansible.builtin.template:
+    src: config.json.j2
+    dest: "{{ xray_config_dir }}/config.json"
+    owner: "{{ xray_user }}"
+    group: "{{ xray_user }}"
+    mode: "0640"
+    validate: "{{ xray_binary_path }} run -test -config %s"
+  notify: restart xray-maskanya
+  no_log: true   # config.json contains the Reality private key
+
+- name: Enable and start xray-maskanya
+  ansible.builtin.systemd:
+    name: "{{ xray_service_name }}"
+    state: started
+    enabled: true
+    daemon_reload: true
+
+# NOTE: the xray_common role's handler also restarts xray-maskanya; Ansible
+# deduplicates handler notifications within a single play run.

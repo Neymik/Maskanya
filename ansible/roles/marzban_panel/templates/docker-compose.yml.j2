@@ -1,0 +1,42 @@
+{{ ansible_managed | comment }}
+
+services:
+  marzban:
+    image: gozargah/marzban:{{ marzban_version }}
+    restart: always
+    env_file: .env
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    ports:
+      # Bind to the mesh IP only — panel UI is never on the public internet.
+      - "{{ marzban_listen_address }}:{{ marzban_listen_port }}:8000"
+    volumes:
+      - ./data:/var/lib/marzban
+      - ./xray:/var/lib/marzban/xray-config
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    networks:
+      - marzban-net
+
+  mariadb:
+    image: {{ mariadb_image }}
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
+      MYSQL_DATABASE: marzban
+      MYSQL_USER: marzban
+      MYSQL_PASSWORD: ${MARIADB_MARZBAN_PASSWORD}
+    volumes:
+      - ./mariadb:/var/lib/mysql
+    networks:
+      - marzban-net
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 30s
+
+networks:
+  marzban-net:
+    driver: bridge

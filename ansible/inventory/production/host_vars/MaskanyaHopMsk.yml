@@ -1,0 +1,64 @@
+---
+# MaskanyaHopMsk — Moscow, RU entry node, DEDICATED (wiped clean of ispmanager
+# baggage by playbooks/wipe-msk.yml before first common-role run).
+
+# --- Connection --------------------------------------------------------------
+
+ansible_host: MaskanyaHopMsk
+public_ipv4: 82.146.35.191
+
+# --- AmneziaWG (spoke on awg1, peers to ZOV hub) -----------------------------
+
+awg_role: spoke
+awg_address: 10.77.0.10
+awg_public_ip: "{{ public_ipv4 }}"
+# awg_public_key: filled in after first `amneziawg` role run
+
+# --- xray / Reality ----------------------------------------------------------
+# Entry inbound (client → MSK) uses 443/tcp + xtls-rprx-vision flow.
+
+xray_inbound_port: 443
+reality_sni: www.nintendo.co.jp    # must differ from ZOV's exit SNI
+reality_short_id: e3d8b1f5         # 8-hex, for client-side Reality handshake
+# reality_public_key: filled in after first `xray_common` role run
+
+# --- Exit targets (MSK → exits over public internet, NOT mesh) ---------------
+#
+# Each entry in this list becomes a Reality outbound in xray's config. The
+# client picks which chain via subscription URI.
+# Values for reality_public_key + reality_short_id + reality_sni must match the
+# target exit node's host_vars exactly — update whenever those change.
+
+xray_exit_targets:
+  - name: nl1
+    chain_name: msk-nl
+    target_host: ZenithOfVastness
+    address: 103.137.249.134         # ZOV public IP, NOT mesh IP
+    port: 8443
+    reality_sni: www.samsung.com     # ZOV's SNI
+    reality_short_id: a7f2c9b4       # ZOV's short ID
+    # reality_public_key: "<paste ZOV's Reality public key after Step 10>"
+    flow: ""                         # empty — Vision is client→entry only
+    # chain_uuid is a SOPS-encrypted shared UUID for the entry→exit VLESS link;
+    # pulled from secrets/xray_clients.yml at template time
+    chain_uuid_key: msk_nl_chain_uuid
+
+# Post-P3 (MaskanyaExitKZ1 live), append here:
+#   - name: kz1
+#     chain_name: msk-kz
+#     address: <KZ public IP>
+#     port: 443
+#     reality_sni: www.kakao.com
+#     reality_short_id: c4a1e9d7
+#     reality_public_key: "..."
+#     flow: ""
+#     chain_uuid_key: msk_kz_chain_uuid
+
+# --- Preservation flags (all FALSE — dedicated node) -------------------------
+
+preserve_nginx: false
+preserve_iptables: false        # common role installs nftables as primary firewall
+preserve_awg0: false
+preserve_timesyncd: false       # chrony takes over
+preserve_fail2ban: false
+preserve_docker: false          # Docker not installed here

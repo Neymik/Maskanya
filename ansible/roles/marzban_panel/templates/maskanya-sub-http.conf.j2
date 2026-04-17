@@ -1,0 +1,17 @@
+{{ ansible_managed | comment }}
+# Temporary HTTP-only vhost for certbot HTTP-01 challenge.
+# Replaced with the full HTTP+HTTPS vhost once the cert is issued.
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name {{ subscription_public_host }};
+
+    location /.well-known/acme-challenge/ {
+        root {{ certbot_webroot }};
+    }
+
+    location / {
+        return 503 "cert provisioning in progress\n";
+    }
+}

@@ -1,0 +1,11 @@
+---
+# node_exporter_version, node_exporter_port come from group_vars/all.yml.
+
+node_exporter_arch: linux-amd64
+node_exporter_user: node_exporter
+node_exporter_install_dir: /usr/local/bin
+node_exporter_listen_address: "{{ awg_address }}:{{ node_exporter_port }}"
+
+# SHA256 for node_exporter v1.8.2 linux-amd64 tarball. Pin this per-version —
+# auditable + repeatable. If you bump node_exporter_version, update this too.
+node_exporter_sha256: "6809dd0b3ec45fd6e992c19071d6b5253aed3ead7bf0686885a51d85c6643c66"

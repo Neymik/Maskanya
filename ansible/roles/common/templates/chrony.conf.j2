@@ -1,0 +1,15 @@
+{{ ansible_managed | comment }}
+
+{% for s in chrony_servers %}
+server {{ s }} iburst
+{% endfor %}
+
+driftfile /var/lib/chrony/chrony.drift
+makestep 1.0 3
+rtcsync
+
+# Only log when the clock is adjusted by more than 0.5s
+logchange 0.5
+
+# Enable kernel RTC copy
+hwclockfile /etc/adjtime

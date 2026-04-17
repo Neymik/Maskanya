@@ -1,0 +1,7 @@
+---
+# Paths on the target host. Namespaced filenames coexist with any unrelated
+# AmneziaWG mesh already on the host (e.g. ZOV's existing awg0).
+
+awg_private_key_path: /etc/amneziawg/maskanya_privatekey
+awg_public_key_path: /etc/amneziawg/maskanya_publickey
+awg_config_path: "/etc/amneziawg/{{ awg_interface }}.conf"

@@ -1,0 +1,34 @@
+---
+- name: Ensure admin primary group exists
+  ansible.builtin.group:
+    name: "{{ admin_user }}"
+    state: present
+
+- name: Create admin user
+  ansible.builtin.user:
+    name: "{{ admin_user }}"
+    group: "{{ admin_user }}"
+    groups: [sudo]
+    append: true
+    shell: /bin/bash
+    create_home: true
+    state: present
+
+- name: Install operator SSH keys
+  ansible.posix.authorized_key:
+    user: "{{ admin_user }}"
+    key: "{{ item }}"
+    state: present
+    exclusive: false
+  loop: "{{ admin_authorized_keys }}"
+  loop_control:
+    label: "{{ item[:40] }}..."
+
+- name: Passwordless sudo for admin
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/90-maskanya-admin
+    owner: root
+    group: root
+    mode: "0440"
+    content: "{{ admin_user }} ALL=(ALL) NOPASSWD: ALL\n"
+    validate: "/usr/sbin/visudo -cf %s"

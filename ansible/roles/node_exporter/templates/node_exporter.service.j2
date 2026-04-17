@@ -1,0 +1,28 @@
+{{ ansible_managed | comment }}
+[Unit]
+Description=Prometheus node_exporter
+After=network-online.target {{ 'awg-quick@' + awg_interface + '.service' }}
+Wants=network-online.target
+
+[Service]
+User={{ node_exporter_user }}
+Group={{ node_exporter_user }}
+Type=simple
+ExecStart={{ node_exporter_install_dir }}/node_exporter \
+  --web.listen-address={{ node_exporter_listen_address }} \
+  --collector.systemd \
+  --collector.processes
+Restart=on-failure
+RestartSec=5s
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictRealtime=true
+
+[Install]
+WantedBy=multi-user.target

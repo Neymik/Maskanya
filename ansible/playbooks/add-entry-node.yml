@@ -1,0 +1,33 @@
+---
+# Full entry-node onboarding. Run with `--limit <NewHostName>` after the host
+# has been bootstrapped (`make bootstrap HOST=<NewHostName>`).
+#
+# Flow:
+#   1. Baseline + firewall + mesh + exporter on the new node (common→amneziawg→…).
+#   2. Deploy xray entry stack on it.
+#   3. Re-converge the hub so its AWG peer list picks up the new spoke's pubkey.
+
+- name: Baseline + firewall + mesh + metrics
+  hosts: all
+  gather_facts: true
+  become: true
+  roles:
+    - common
+    - firewall
+    - amneziawg
+    - node_exporter
+
+- name: xray entry stack (split routing + Reality inbound/outbound)
+  hosts: entries
+  gather_facts: true
+  become: true
+  roles:
+    - xray_common
+    - xray_entry
+
+- name: Re-converge AmneziaWG hub to pick up new peer
+  hosts: mgmt
+  gather_facts: true
+  become: true
+  roles:
+    - amneziawg

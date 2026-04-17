@@ -1,0 +1,11 @@
+---
+# Mgmt host paths + network bindings come from group_vars/mgmt.yml.
+# These defaults cover webroot / nginx paths shared across nearly every
+# Debian-family host.
+
+certbot_webroot: /var/www/certbot
+nginx_sites_available: /etc/nginx/sites-available
+nginx_sites_enabled: /etc/nginx/sites-enabled
+
+# Marzban subscription path prefix (defaults upstream; keep in sync with .env).
+marzban_sub_path: /sub/

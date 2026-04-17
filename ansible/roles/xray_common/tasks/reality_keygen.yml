@@ -1,0 +1,59 @@
+---
+- name: Generate Reality keypair if absent
+  ansible.builtin.shell:
+    cmd: |
+      set -euo pipefail
+      keys=$({{ xray_binary_path }} x25519)
+      priv=$(echo "$keys" | awk '/Private key:/ {print $3}')
+      pub=$(echo "$keys" | awk '/Public key:/ {print $3}')
+      umask 077
+      printf '%s' "$priv" > "{{ xray_reality_private_key_path }}"
+      umask 022
+      printf '%s' "$pub" > "{{ xray_reality_public_key_path }}"
+    creates: "{{ xray_reality_private_key_path }}"
+  register: reality_keygen
+
+- name: Enforce permissions on Reality private key
+  ansible.builtin.file:
+    path: "{{ xray_reality_private_key_path }}"
+    owner: "{{ xray_user }}"
+    group: "{{ xray_user }}"
+    mode: "0600"
+
+- name: Enforce permissions on Reality public key
+  ansible.builtin.file:
+    path: "{{ xray_reality_public_key_path }}"
+    owner: "{{ xray_user }}"
+    group: "{{ xray_user }}"
+    mode: "0644"
+
+- name: Read Reality public key
+  ansible.builtin.slurp:
+    src: "{{ xray_reality_public_key_path }}"
+  register: reality_pub_slurp
+  changed_when: false
+
+- name: Publish Reality public key as fact
+  ansible.builtin.set_fact:
+    reality_public_key_local: "{{ reality_pub_slurp['content'] | b64decode | trim }}"
+
+- name: Read Reality private key (protected)
+  ansible.builtin.slurp:
+    src: "{{ xray_reality_private_key_path }}"
+  register: reality_priv_slurp
+  changed_when: false
+  no_log: true
+
+- name: Publish Reality private key fact (protected — template-only)
+  ansible.builtin.set_fact:
+    reality_private_key_local: "{{ reality_priv_slurp['content'] | b64decode | trim }}"
+  no_log: true
+
+- name: Report Reality public key (commit to host_vars)
+  ansible.builtin.debug:
+    msg:
+      - "Reality public key for {{ inventory_hostname }}:"
+      - "    {{ reality_public_key_local }}"
+      - "Commit to host_vars/{{ inventory_hostname }}.yml as:"
+      - "    reality_public_key: \"{{ reality_public_key_local }}\""
+  when: reality_keygen is changed

@@ -1,0 +1,26 @@
+---
+# Defaults for the common role. Override via group_vars/host_vars.
+
+admin_user: admin
+admin_ssh_port: 2222
+
+# journald defaults (entries override storage=volatile in group_vars/entries.yml).
+journald_storage: persistent
+journald_system_max_use: "200M"
+journald_runtime_max_use: "200M"
+
+# Preservation flags — defaults for dedicated Maskanya nodes. ZOV host_vars flips
+# these to `true` so we skip installing/replacing anything that already works there.
+preserve_nginx: false
+preserve_iptables: false
+preserve_awg0: false
+preserve_timesyncd: false
+preserve_fail2ban: false
+preserve_docker: false
+preserve_x_ui: false
+preserve_journald: false
+
+# fail2ban subject: on mgmt (shared-use ZOV) we rate-limit the subscription
+# endpoint's 404 tokens. On dedicated entries/exits we only want sshd coverage.
+fail2ban_jails:
+  - sshd

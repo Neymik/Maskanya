@@ -1,0 +1,26 @@
+---
+# Install once:  pipx install pre-commit && pre-commit install
+# Runs before every git commit.
+
+repos:
+  - repo: local
+    hooks:
+      - id: plaintext-secrets-check
+        name: Block plaintext secrets
+        entry: scripts/check-plaintext-secrets.sh
+        language: script
+        pass_filenames: false
+        always_run: true
+
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.35.1
+    hooks:
+      - id: yamllint
+        args: ['-c', '.yamllint']
+        exclude: ^(secrets/|\.galaxy/|\.ansible/)
+
+  - repo: https://github.com/ansible/ansible-lint
+    rev: v24.9.2
+    hooks:
+      - id: ansible-lint
+        files: ^ansible/

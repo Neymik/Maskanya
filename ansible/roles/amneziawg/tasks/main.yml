@@ -1,0 +1,12 @@
+---
+- name: Install AmneziaWG + tools
+  ansible.builtin.import_tasks: install.yml
+  tags: [amneziawg, install]
+
+- name: Generate Maskanya mesh keypair (on-node)
+  ansible.builtin.import_tasks: keygen.yml
+  tags: [amneziawg, keygen]
+
+- name: Render {{ awg_interface }}.conf and start the interface
+  ansible.builtin.import_tasks: configure.yml
+  tags: [amneziawg, configure]

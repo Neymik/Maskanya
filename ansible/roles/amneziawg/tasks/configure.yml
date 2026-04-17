@@ -1,0 +1,17 @@
+---
+- name: Render {{ awg_config_path }}
+  ansible.builtin.template:
+    src: awg.conf.j2
+    dest: "{{ awg_config_path }}"
+    owner: root
+    group: root
+    mode: "0600"
+  notify: restart awg-quick
+  no_log: true   # the rendered file contains the private key
+
+- name: Enable and start awg-quick@{{ awg_interface }}
+  ansible.builtin.systemd:
+    name: "awg-quick@{{ awg_interface }}"
+    state: started
+    enabled: true
+    daemon_reload: true

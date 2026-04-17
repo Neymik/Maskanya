@@ -1,0 +1,9 @@
+---
+# Firewall role defaults. The role is divergent:
+#   - dedicated nodes (preserve_iptables: false) get a default-drop nftables ruleset
+#   - shared-use hosts (preserve_iptables: true, e.g. ZenithOfVastness with Docker
+#     + 13 existing nginx vhosts) get an additive iptables shell script + oneshot
+#     unit, without touching policy/DOCKER/DOCKER-USER/fail2ban chains.
+
+# node_exporter port (must match node_exporter role default)
+node_exporter_port: 9100

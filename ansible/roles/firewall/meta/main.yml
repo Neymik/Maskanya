@@ -1,0 +1,14 @@
+---
+galaxy_info:
+  role_name: firewall
+  author: Maskanya
+  description: Divergent firewall — nftables default-drop on dedicated nodes, additive iptables on shared-use hosts
+  license: MIT
+  min_ansible_version: "2.14"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - jammy
+        - noble
+
+dependencies: []

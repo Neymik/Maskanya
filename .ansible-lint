@@ -1,0 +1,16 @@
+---
+profile: moderate
+
+exclude_paths:
+  - .github/
+  - .galaxy/
+  - .ansible/
+  - docs/
+
+skip_list:
+  - experimental
+  - fqcn-builtins
+
+warn_list:
+  - role-name
+  - yaml[line-length]

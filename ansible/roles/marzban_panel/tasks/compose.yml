@@ -1,0 +1,47 @@
+---
+- name: Assert Docker is already present (we never install it here — ZOV already runs 20+ containers)
+  ansible.builtin.command: docker version --format '{% raw %}{{ .Server.Version }}{% endraw %}'
+  register: docker_version
+  changed_when: false
+  failed_when: docker_version.rc != 0
+
+- name: Ensure marzban install dir exists
+  ansible.builtin.file:
+    path: "{{ marzban_install_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Render .env (contains admin + DB credentials)
+  ansible.builtin.template:
+    src: env.j2
+    dest: "{{ marzban_install_dir }}/.env"
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+
+- name: Render docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ marzban_install_dir }}/docker-compose.yml"
+    owner: root
+    group: root
+    mode: "0640"
+
+- name: Start / converge the Marzban compose stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ marzban_install_dir }}"
+    state: present
+    wait: true
+    wait_timeout: 180
+
+- name: Wait for Marzban API to respond on mesh
+  ansible.builtin.uri:
+    url: "http://{{ marzban_listen_address }}:{{ marzban_listen_port }}/api/system"
+    status_code: [200, 401, 403]
+  register: marzban_health
+  retries: 30
+  delay: 2
+  until: marzban_health.status in [200, 401, 403]

@@ -1,0 +1,32 @@
+---
+- name: Assert all exit targets have a committed Reality public key
+  ansible.builtin.assert:
+    that:
+      - item.reality_public_key is defined
+      - item.reality_public_key | length > 0
+    fail_msg: >-
+      xray_exit_targets entry {{ item.name }} has no reality_public_key yet.
+      Run xray_common on the target exit first, copy its printed Reality public
+      key into host_vars/{{ hostvars[item.target_host | default(inventory_hostname)].inventory_hostname | default(item.target_host) }}.yml,
+      add it to xray_exit_targets[].reality_public_key here, and re-run.
+  loop: "{{ xray_exit_targets }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Render xray config.json (entry role with split routing)
+  ansible.builtin.template:
+    src: config.json.j2
+    dest: "{{ xray_config_dir }}/config.json"
+    owner: "{{ xray_user }}"
+    group: "{{ xray_user }}"
+    mode: "0640"
+    validate: "{{ xray_binary_path }} run -test -config %s"
+  notify: restart xray-maskanya
+  no_log: true
+
+- name: Enable and start xray-maskanya
+  ansible.builtin.systemd:
+    name: "{{ xray_service_name }}"
+    state: started
+    enabled: true
+    daemon_reload: true

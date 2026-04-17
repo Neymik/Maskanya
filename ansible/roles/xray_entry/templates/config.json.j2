@@ -1,0 +1,129 @@
+{#
+  xray-core config — entry role.
+
+  - Reality inbound on xray_inbound_port (443) with `xtls-rprx-vision` flow for
+    the client→entry leg. Users come from SOPS (xray_clients.users).
+  - One Reality outbound per entry in xray_exit_targets. Outbound flow is
+    empty — Vision is a client-only optimization; applying it on an
+    intermediate hop breaks the chain.
+  - Routing: geoip:ru + geosite:category-ru → direct egress. Everything else
+    → the first exit target's outbound. (Multi-exit chain selection happens
+    at the client via subscription URIs in Phase 3.)
+#}
+{
+  "log": {
+    "loglevel": "warning"{% if xray_access_log_disabled %},
+    "access": "none"{% endif %}
+
+  },
+  "inbounds": [
+    {
+      "tag": "reality-in",
+      "listen": "0.0.0.0",
+      "port": {{ xray_inbound_port }},
+      "protocol": "vless",
+      "settings": {
+        "clients": [
+{% for u in xray_clients.users %}
+          {
+            "id": "{{ u.uuid }}",
+            "flow": "xtls-rprx-vision",
+            "email": "{{ u.email }}"
+          }{% if not loop.last %},{% endif %}
+
+{% endfor %}
+        ],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "reality",
+        "realitySettings": {
+          "show": false,
+          "dest": "{{ reality_sni }}:443",
+          "xver": 0,
+          "serverNames": ["{{ reality_sni }}"],
+          "privateKey": "{{ reality_private_key_local }}",
+          "shortIds": ["{{ reality_short_id }}"]
+        }
+      }
+    },
+    {
+      "tag": "api",
+      "listen": "{{ awg_address }}",
+      "port": {{ xray_entry_api_port }},
+      "protocol": "dokodemo-door",
+      "settings": {"address": "127.0.0.1"}
+    }
+  ],
+  "outbounds": [
+    {"tag": "direct", "protocol": "freedom", "settings": {"domainStrategy": "UseIP"}},
+    {"tag": "block", "protocol": "blackhole"}
+{% for t in xray_exit_targets %}
+    ,{
+      "tag": "exit-{{ t.name }}",
+      "protocol": "vless",
+      "settings": {
+        "vnext": [{
+          "address": "{{ t.address }}",
+          "port": {{ t.port }},
+          "users": [{
+            "id": "{{ xray_clients.chain_links[t.chain_uuid_key] }}",
+            "flow": "{{ t.flow | default('') }}",
+            "encryption": "none"
+          }]
+        }]
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "reality",
+        "realitySettings": {
+          "show": false,
+          "serverName": "{{ t.reality_sni }}",
+          "publicKey": "{{ t.reality_public_key }}",
+          "shortId": "{{ t.reality_short_id }}",
+          "spiderX": ""
+        }
+      }
+    }
+{% endfor %}
+  ],
+  "routing": {
+    "domainStrategy": "IPIfNonMatch",
+    "rules": [
+      {"type": "field", "inboundTag": ["api"], "outboundTag": "api"}
+{% for rule in split_routing_rules %}
+      ,{
+        "type": "{{ rule.type }}",
+        "outboundTag": "{{ rule.outbound_tag }}"
+{% if rule.ip is defined %}
+        ,"ip": {{ rule.ip | to_json }}
+{% endif %}
+{% if rule.domain is defined %}
+        ,"domain": {{ rule.domain | to_json }}
+{% endif %}
+      }
+{% endfor %}
+      ,{
+        "type": "field",
+        "outboundTag": "exit-{{ xray_exit_targets[0].name }}",
+        "network": "tcp,udp"
+      }
+    ]
+  },
+  "dns": {{ xray_dns | to_json }},
+  "api": {
+    "tag": "api",
+    "services": ["HandlerService", "LoggerService", "StatsService"]
+  },
+  "policy": {
+    "levels": {"0": {"statsUserUplink": true, "statsUserDownlink": true}},
+    "system": {
+      "statsInboundUplink": true,
+      "statsInboundDownlink": true,
+      "statsOutboundUplink": true,
+      "statsOutboundDownlink": true
+    }
+  },
+  "stats": {}
+}

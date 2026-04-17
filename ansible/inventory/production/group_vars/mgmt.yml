@@ -1,0 +1,27 @@
+---
+# Variables applied to the management host (currently ZenithOfVastness).
+#
+# Secrets are resolved via the community.sops lookup; files live in
+# <repo>/secrets/ and are anchored via inventory_dir so the path works from
+# any playbook location (site.yml, ad-hoc, CI).
+
+marzban_version: "v0.8.4"
+mariadb_image: "mariadb:11.4"
+
+marzban_install_dir: /opt/marzban
+marzban_listen_address: "{{ awg_address }}"   # mesh-only
+marzban_listen_port: 8000
+
+# SOPS-backed credential vars (decrypted at reference time).
+_marzban_admin: "{{ lookup('community.sops.sops', inventory_dir + '/../../../secrets/marzban_admin.yml') | from_yaml }}"
+_mariadb: "{{ lookup('community.sops.sops', inventory_dir + '/../../../secrets/mariadb.yml') | from_yaml }}"
+
+marzban_admin_username: "{{ _marzban_admin.username }}"
+marzban_admin_password: "{{ _marzban_admin.password }}"
+
+mariadb_root_password: "{{ _mariadb.root_password }}"
+mariadb_marzban_password: "{{ _mariadb.marzban_password }}"
+
+# Subscription endpoint config (integrated into existing nginx on ZOV).
+subscription_public_host: "{{ sub_domain }}"
+subscription_upstream: "http://{{ awg_hub_address }}:{{ marzban_listen_port }}"

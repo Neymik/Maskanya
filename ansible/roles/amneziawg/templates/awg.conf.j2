@@ -1,0 +1,51 @@
+{{ ansible_managed | comment }}
+# Maskanya control mesh — interface {{ awg_interface }}, subnet {{ awg_subnet }}.
+# Any unrelated AmneziaWG mesh on this host (e.g. awg0) is on a different
+# interface and coexists with this one.
+
+[Interface]
+PrivateKey = {{ awg_private_key_local }}
+Address = {{ awg_address }}/32
+{% if awg_role == 'hub' %}
+ListenPort = {{ awg_listen_port }}
+{% endif %}
+
+# Obfuscation parameters — identical across every peer.
+Jc = {{ awg_junk_params.Jc }}
+Jmin = {{ awg_junk_params.Jmin }}
+Jmax = {{ awg_junk_params.Jmax }}
+S1 = {{ awg_junk_params.S1 }}
+S2 = {{ awg_junk_params.S2 }}
+H1 = {{ awg_junk_params.H1 }}
+H2 = {{ awg_junk_params.H2 }}
+H3 = {{ awg_junk_params.H3 }}
+H4 = {{ awg_junk_params.H4 }}
+
+{% if awg_role == 'hub' %}
+# -- Hub: peer with every spoke whose public key has been committed to host_vars --
+{% for h in (groups['entries'] | default([])) + (groups['exits'] | default([])) %}
+{% if h != inventory_hostname and hostvars[h].awg_public_key is defined and hostvars[h].awg_public_key %}
+
+[Peer]
+# {{ h }}
+PublicKey = {{ hostvars[h].awg_public_key }}
+AllowedIPs = {{ hostvars[h].awg_address }}/32
+{% endif %}
+{% endfor %}
+{% else %}
+# -- Spoke: peer with the hub --
+{% set hub_name = groups['mgmt'] | first %}
+
+[Peer]
+# {{ hub_name }} (hub)
+{% if hostvars[hub_name].awg_public_key is defined and hostvars[hub_name].awg_public_key %}
+PublicKey = {{ hostvars[hub_name].awg_public_key }}
+{% else %}
+# PublicKey pending: hub has not published its key yet.
+# Run the amneziawg role on the hub first, commit its awg_public_key to
+# host_vars/{{ hub_name }}.yml, then re-run on this spoke.
+{% endif %}
+Endpoint = {{ hostvars[hub_name].public_ipv4 }}:{{ awg_listen_port }}
+AllowedIPs = {{ awg_subnet }}
+PersistentKeepalive = 25
+{% endif %}

@@ -1,0 +1,13 @@
+[Unit]
+Description=Maskanya additive iptables rules
+After=network-online.target docker.service
+Wants=network-online.target
+# If Docker is not present the dependency is a no-op (systemd just skips it).
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/maskanya-iptables-rules.sh
+
+[Install]
+WantedBy=multi-user.target

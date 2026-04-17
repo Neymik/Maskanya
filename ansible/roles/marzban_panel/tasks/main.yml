@@ -1,0 +1,8 @@
+---
+- name: Install Marzban + MariaDB Docker Compose stack
+  ansible.builtin.import_tasks: compose.yml
+  tags: [marzban, compose]
+
+- name: Integrate subscription + panel vhosts into existing nginx
+  ansible.builtin.import_tasks: nginx_integration.yml
+  tags: [marzban, nginx]

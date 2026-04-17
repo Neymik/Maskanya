@@ -1,0 +1,47 @@
+{{ ansible_managed | comment }}
+# Marzban panel UI — mesh-only. The public A record exists only so Let's
+# Encrypt can issue a cert via HTTP-01; actual access is restricted to the
+# AmneziaWG subnet by `allow/deny`.
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name {{ panel_domain }};
+
+    location /.well-known/acme-challenge/ {
+        root {{ certbot_webroot }};
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name {{ panel_domain }};
+
+    ssl_certificate     /etc/letsencrypt/live/{{ panel_domain }}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{ panel_domain }}/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers on;
+    ssl_session_cache shared:SSL:10m;
+
+    # Access restricted to the Maskanya control mesh.
+    allow {{ awg_subnet }};
+    deny all;
+
+    access_log /var/log/nginx/maskanya-panel.access.log;
+    error_log  /var/log/nginx/maskanya-panel.error.log;
+
+    location / {
+        proxy_pass {{ subscription_upstream }};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_http_version 1.1;
+    }
+}

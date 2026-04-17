@@ -1,0 +1,23 @@
+---
+# Variables applied to all exit nodes.
+#
+# Default port is 8443 (shared-use hosts like ZenithOfVastness — nginx owns :443).
+# Dedicated exits (MaskanyaExitKZ1, future nodes) override this to 443 in host_vars.
+
+xray_role: exit
+xray_inbound_port: 8443
+
+# Exits egress to the internet directly — no split routing, block only private ranges.
+xray_exit_routing_rules:
+  - type: field
+    outbound_tag: block
+    ip:
+      - "geoip:private"
+  # Everything else → freedom (direct)
+
+# No per-user access logging on exits either.
+xray_access_log_disabled: true
+
+# Source-IP allowlist for the Reality inbound. Overridden per host when we know
+# which entry nodes are authorized to reach this exit.
+exit_allowed_entry_ips: []

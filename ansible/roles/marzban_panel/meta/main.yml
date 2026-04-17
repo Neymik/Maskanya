@@ -1,0 +1,14 @@
+---
+galaxy_info:
+  role_name: marzban_panel
+  author: Maskanya
+  description: Marzban panel + MariaDB via Docker Compose; subscription/panel vhosts in existing nginx
+  license: MIT
+  min_ansible_version: "2.14"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - jammy
+        - noble
+
+dependencies: []

@@ -1,0 +1,17 @@
+---
+# First-contact bootstrap for a new host. Applies only the common role.
+#
+# FIRST run (fresh provider image, root on port 22):
+#   cd ansible && ansible-playbook -i inventory/production/hosts.yml playbooks/bootstrap.yml \
+#     --limit <HostName> -e 'ansible_user=root' -e 'ansible_port=22'
+#
+# After this succeeds, sshd listens on admin_ssh_port and the admin user is set
+# up. Subsequent runs use inventory defaults:
+#   make bootstrap HOST=<HostName>
+
+- name: Bootstrap baseline hardening
+  hosts: all
+  gather_facts: true
+  become: true
+  roles:
+    - common

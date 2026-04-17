@@ -1,0 +1,20 @@
+{{ ansible_managed | comment }}
+# Maskanya sshd hardening. Higher-priority than /etc/ssh/sshd_config.
+# Keep this block minimal; if you need to add a directive, do it here
+# (not in the stock sshd_config).
+
+Port {{ admin_ssh_port }}
+PermitRootLogin no
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+ChallengeResponseAuthentication no
+PubkeyAuthentication yes
+MaxAuthTries 3
+LoginGraceTime 30s
+ClientAliveInterval 60
+ClientAliveCountMax 3
+X11Forwarding no
+AllowAgentForwarding no
+AllowTcpForwarding no
+PermitTunnel no
+AllowUsers {{ admin_user }}

@@ -1,0 +1,47 @@
+---
+# Full Phase-1 fleet convergence.
+#
+# Run order guarantees the two-pass key propagation works:
+#   - common/firewall/amneziawg/node_exporter on all hosts (mesh keys generated + peered)
+#   - xray_common on exits first → generates + prints Reality pubkey
+#   - xray_exit on exits
+#   - xray_common on entries (their own Reality pubkey) then xray_entry
+#     (needs the exits' pubkeys committed to xray_exit_targets in host_vars)
+#   - marzban_panel on mgmt
+#
+# On the very first run, xray_entry will fail until exits' Reality public keys
+# are committed to host_vars and added to xray_exit_targets. That's expected —
+# the fail_msg in xray_entry/tasks/main.yml tells you what to paste where.
+
+- name: Baseline (all hosts)
+  hosts: all
+  gather_facts: true
+  become: true
+  roles:
+    - common
+    - firewall
+    - amneziawg
+    - node_exporter
+
+- name: Exit nodes — xray exit stack
+  hosts: exits
+  gather_facts: true
+  become: true
+  roles:
+    - xray_common
+    - xray_exit
+
+- name: Entry nodes — xray entry with split routing
+  hosts: entries
+  gather_facts: true
+  become: true
+  roles:
+    - xray_common
+    - xray_entry
+
+- name: Management host — Marzban panel + nginx integration
+  hosts: mgmt
+  gather_facts: true
+  become: true
+  roles:
+    - marzban_panel

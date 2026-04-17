@@ -1,0 +1,70 @@
+#!/usr/sbin/nft -f
+{{ ansible_managed | comment }}
+
+flush ruleset
+
+{# Compute the set of source IPs allowed for the AWG UDP port.
+   - hub: all spoke peers' public IPs (entries + exits, minus ourselves)
+   - spoke: just the hub's public IP
+#}
+{% if awg_role == 'hub' %}
+  {%- set awg_src_ips = [] -%}
+  {%- for h in (groups['entries'] | default([])) + (groups['exits'] | default([])) -%}
+    {%- if h != inventory_hostname and hostvars[h].public_ipv4 is defined -%}
+      {%- set _ = awg_src_ips.append(hostvars[h].public_ipv4) -%}
+    {%- endif -%}
+  {%- endfor -%}
+{% else %}
+  {%- set hub_name = (groups['mgmt'] | first) -%}
+  {%- set awg_src_ips = [hostvars[hub_name].public_ipv4] -%}
+{% endif %}
+
+table inet filter {
+    chain input {
+        type filter hook input priority 0; policy drop;
+
+        # Loopback, always.
+        iif "lo" accept
+
+        # Established / related connections.
+        ct state established,related accept
+        ct state invalid drop
+
+        # ICMP — rate-limited echo.
+        ip protocol icmp limit rate 10/second accept
+        ip6 nexthdr icmpv6 limit rate 10/second accept
+
+        # SSH from the control mesh only.
+        tcp dport {{ admin_ssh_port }} ip saddr {{ awg_subnet }} accept
+
+        # AmneziaWG UDP from authorized peer public IPs.
+        udp dport {{ awg_listen_port }} ip saddr { {{ awg_src_ips | unique | join(', ') }} } accept
+
+        # node_exporter bound to mesh (defence in depth — role already binds there).
+        tcp dport {{ node_exporter_port }} ip saddr {{ awg_subnet }} accept
+
+{% if xray_role == 'entry' %}
+        # Reality inbound: public — user data plane.
+        tcp dport {{ xray_inbound_port }} accept
+{% elif xray_role == 'exit' %}
+        # Reality inbound: only from authorised entry nodes.
+  {% if (exit_allowed_entry_ips | default([])) | length > 0 %}
+        tcp dport {{ xray_inbound_port }} ip saddr { {{ exit_allowed_entry_ips | join(', ') }} } accept
+  {% else %}
+        # (no entries configured yet — drop until exit_allowed_entry_ips is populated)
+  {% endif %}
+{% endif %}
+
+        # Everything else: log at a low rate, then drop.
+        limit rate 10/minute log prefix "[nft-drop] " level info
+        counter drop
+    }
+
+    chain forward {
+        type filter hook forward priority 0; policy drop;
+    }
+
+    chain output {
+        type filter hook output priority 0; policy accept;
+    }
+}

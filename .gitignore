@@ -1,0 +1,36 @@
+# Ansible
+*.retry
+.galaxy/
+.ansible/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Secrets — never commit plaintext
+*.key
+*.pem
+!*.pub
+secrets/*.dec.yml
+secrets/*.dec.yaml
+.env
+.env.local
+
+# Age keys — store in 1Password, not git
+age-key.txt
+*.age-key
+keys.txt
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Local overrides
+local.yml
+ansible/inventory/local/

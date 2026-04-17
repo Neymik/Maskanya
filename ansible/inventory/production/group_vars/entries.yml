@@ -1,0 +1,41 @@
+---
+# Variables applied to all entry nodes (RU-hosted, minimal-footprint).
+
+xray_role: entry
+xray_inbound_port: 443
+
+# Entry nodes do NOT log user access — the whole point of the RU minimal-footprint design.
+xray_access_log_disabled: true
+
+# journald with volatile storage: logs live in RAM only, vanish on reboot.
+journald_storage: volatile
+journald_system_max_use: "50M"
+journald_runtime_max_use: "50M"
+
+# Split routing — Russian domestic traffic exits directly from the entry node;
+# everything else forwards to the assigned exit via Reality outbound.
+split_routing_rules:
+  - type: field
+    outbound_tag: direct
+    domain:
+      - "geosite:category-ru"
+      - "geosite:private"
+  - type: field
+    outbound_tag: direct
+    ip:
+      - "geoip:ru"
+      - "geoip:private"
+  # All other traffic → exit-* outbound (set per host in xray_exit_targets)
+
+# DNS resolution on entries: Yandex for RU zone, 1.1.1.1 for everything else.
+# This prevents leaking foreign DNS queries to RU resolvers and vice versa.
+xray_dns:
+  servers:
+    - address: "77.88.8.8"
+      domains:
+        - "geosite:category-ru"
+    - address: "77.88.8.1"
+      domains:
+        - "geosite:category-ru"
+    - "1.1.1.1"
+    - "1.0.0.1"

@@ -1,0 +1,91 @@
+{#
+  xray-core config — exit role.
+
+  - Single Reality inbound on xray_inbound_port (8443 on ZOV, 443 on dedicated
+    exits). Clients are the shared chain UUIDs, one per chain terminating here.
+  - freedom outbound for direct egress, blackhole outbound for private IPs.
+  - API inbound bound to the mesh IP for stats scraping (Phase 2 monitoring).
+#}
+{
+  "log": {
+    "loglevel": "warning"{% if xray_access_log_disabled %},
+    "access": "none"{% endif %}
+
+  },
+  "inbounds": [
+    {
+      "tag": "reality-in",
+      "listen": "0.0.0.0",
+      "port": {{ xray_inbound_port }},
+      "protocol": "vless",
+      "settings": {
+        "clients": [
+{% for c in exit_chains %}
+          {
+            "id": "{{ xray_clients.chain_links[c.chain_uuid_key] }}",
+            "flow": "",
+            "email": "chain-{{ c.chain_name }}@maskanya"
+          }{% if not loop.last %},{% endif %}
+
+{% endfor %}
+        ],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "reality",
+        "realitySettings": {
+          "show": false,
+          "dest": "{{ reality_sni }}:443",
+          "xver": 0,
+          "serverNames": ["{{ reality_sni }}"],
+          "privateKey": "{{ reality_private_key_local }}",
+          "shortIds": ["{{ reality_short_id }}"]
+        }
+      }
+    },
+    {
+      "tag": "api",
+      "listen": "{{ awg_address }}",
+      "port": {{ xray_exit_api_port }},
+      "protocol": "dokodemo-door",
+      "settings": {"address": "127.0.0.1"}
+    }
+  ],
+  "outbounds": [
+    {"tag": "direct", "protocol": "freedom"},
+    {"tag": "block", "protocol": "blackhole"}
+  ],
+  "routing": {
+    "domainStrategy": "AsIs",
+    "rules": [
+      {"type": "field", "inboundTag": ["api"], "outboundTag": "api"}
+{% for rule in xray_exit_routing_rules %}
+      ,{
+        "type": "{{ rule.type }}",
+        "outboundTag": "{{ rule.outbound_tag }}"
+{% if rule.ip is defined %}
+        ,"ip": {{ rule.ip | to_json }}
+{% endif %}
+{% if rule.domain is defined %}
+        ,"domain": {{ rule.domain | to_json }}
+{% endif %}
+      }
+{% endfor %}
+    ]
+  },
+  "api": {
+    "tag": "api",
+    "services": ["HandlerService", "LoggerService", "StatsService"]
+  },
+  "policy": {
+    "levels": {"0": {"statsUserUplink": true, "statsUserDownlink": true}},
+    "system": {
+      "statsInboundUplink": true,
+      "statsInboundDownlink": true,
+      "statsOutboundUplink": true,
+      "statsOutboundDownlink": true
+    }
+  },
+  "stats": {}
+}

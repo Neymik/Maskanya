@@ -1,0 +1,38 @@
+---
+# IMPORTANT: the Port directive in our drop-in changes the listening port.
+# On the FIRST bootstrap of a host, the initial SSH session is on port 22 as
+# root; after the handler restarts sshd at end-of-play the box listens on
+# admin_ssh_port, and subsequent Ansible runs must use the inventory defaults
+# (admin user + admin_ssh_port).
+
+- name: Ensure sshd drop-in dir exists
+  ansible.builtin.file:
+    path: /etc/ssh/sshd_config.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Deploy hardened sshd drop-in
+  ansible.builtin.template:
+    src: sshd_config_maskanya.j2
+    dest: /etc/ssh/sshd_config.d/00-maskanya.conf
+    owner: root
+    group: root
+    mode: "0644"
+    validate: "/usr/sbin/sshd -t -f %s"
+  notify: restart sshd
+
+- name: Mask conflicting stock sshd_config lines (our drop-in wins anyway, but clarity > surprise)
+  ansible.builtin.replace:
+    path: /etc/ssh/sshd_config
+    regexp: '^[#\s]*({{ item }})\s+.*$'
+    replace: '# \1 — overridden by /etc/ssh/sshd_config.d/00-maskanya.conf'
+  loop:
+    - Port
+    - PermitRootLogin
+    - PasswordAuthentication
+    - KbdInteractiveAuthentication
+    - ChallengeResponseAuthentication
+    - MaxAuthTries
+  notify: restart sshd

@@ -1,0 +1,56 @@
+---
+# On-node key generation. Private key NEVER leaves the host's disk (slurp into
+# a transient fact, used only by the next template render; no_log guards any
+# accidental logging).
+
+- name: Generate private key if absent
+  ansible.builtin.shell:
+    cmd: |
+      umask 077
+      awg genkey > "{{ awg_private_key_path }}"
+    creates: "{{ awg_private_key_path }}"
+  register: awg_keygen
+
+- name: Enforce 0600 on private key (defence in depth)
+  ansible.builtin.file:
+    path: "{{ awg_private_key_path }}"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Derive public key if absent
+  ansible.builtin.shell:
+    cmd: |
+      awg pubkey < "{{ awg_private_key_path }}" > "{{ awg_public_key_path }}"
+    creates: "{{ awg_public_key_path }}"
+
+- name: Read public key
+  ansible.builtin.slurp:
+    src: "{{ awg_public_key_path }}"
+  register: awg_pub_slurp
+  changed_when: false
+
+- name: Publish public key as fact
+  ansible.builtin.set_fact:
+    awg_public_key_local: "{{ awg_pub_slurp['content'] | b64decode | trim }}"
+
+- name: Read private key (protected — never logged, stays in memory)
+  ansible.builtin.slurp:
+    src: "{{ awg_private_key_path }}"
+  register: awg_priv_slurp
+  changed_when: false
+  no_log: true
+
+- name: Publish private key as protected fact (template-only)
+  ansible.builtin.set_fact:
+    awg_private_key_local: "{{ awg_priv_slurp['content'] | b64decode | trim }}"
+  no_log: true
+
+- name: Report public key (commit to host_vars)
+  ansible.builtin.debug:
+    msg:
+      - "AmneziaWG public key for {{ inventory_hostname }}:"
+      - "    {{ awg_public_key_local }}"
+      - "Commit to ansible/inventory/production/host_vars/{{ inventory_hostname }}.yml:"
+      - "    awg_public_key: \"{{ awg_public_key_local }}\""
+  when: awg_keygen is changed

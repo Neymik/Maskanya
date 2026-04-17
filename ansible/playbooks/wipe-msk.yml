@@ -1,0 +1,165 @@
+---
+# DESTRUCTIVE — purges the ispmanager web-hosting stack that ships on FirstVDS's
+# default image, then reboots the box. Intended to run exactly ONCE on
+# MaskanyaHopMsk before the common role's first convergence.
+#
+# Requires:
+#   - a FirstVDS control-panel snapshot taken manually beforehand
+#   - typed "WIPE" confirmation at the prompt
+#   - --limit MaskanyaHopMsk (the pre_tasks refuse any other host)
+#
+# Usage:
+#   make wipe-msk
+#   # or
+#   cd ansible && ansible-playbook \
+#     -i inventory/production/hosts.yml playbooks/wipe-msk.yml \
+#     --limit MaskanyaHopMsk \
+#     -e 'ansible_user=root ansible_port=22'
+#
+# The override is necessary because the box hasn't had the admin user created
+# yet — that's the job of the common role, run AFTER this wipe.
+
+- name: Wipe MaskanyaHopMsk (ispmanager + web + DB + FTP + PHP)
+  hosts: MaskanyaHopMsk
+  gather_facts: true
+  become: true
+
+  vars_prompt:
+    - name: wipe_confirmation
+      prompt: |
+
+        ==================================================================
+        This playbook PURGES from MaskanyaHopMsk:
+          - ispmanager6-lite and all mgr5-* packages
+          - BIND (bind9)
+          - MySQL / MariaDB (server + client + data in /var/lib/mysql)
+          - ProFTPD
+          - PHP-FPM (every installed version)
+          - nginx
+
+        It also removes their state directories (/etc, /var/lib, /var/log,
+        /var/www) and flushes iptables to ACCEPT/ACCEPT/DROP policy.
+
+        The box is then rebooted.
+
+        Everything listed above is destroyed. Before continuing, take a
+        FirstVDS control-panel snapshot.
+
+        Type exactly  WIPE  (uppercase, no quotes) to proceed:
+        ==================================================================
+      private: false
+
+  pre_tasks:
+    - name: Refuse to run against any host other than MaskanyaHopMsk
+      ansible.builtin.assert:
+        that:
+          - inventory_hostname == "MaskanyaHopMsk"
+        fail_msg: "wipe-msk.yml is restricted to MaskanyaHopMsk. Aborting."
+      tags: always
+
+    - name: Enforce typed confirmation
+      ansible.builtin.assert:
+        that:
+          - wipe_confirmation == "WIPE"
+        fail_msg: "Confirmation string did not match 'WIPE'. Aborting."
+      tags: always
+
+    - name: Final countdown (Ctrl-C now to abort)
+      ansible.builtin.pause:
+        seconds: 5
+        prompt: "Proceeding in 5 seconds. Ctrl-C now to abort."
+
+  tasks:
+    - name: Stop services scheduled for purge (failures ignored — service may be absent)
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        state: stopped
+        enabled: false
+      loop:
+        - ihttpd
+        - mgr5
+        - ispmgrd
+        - nginx
+        - bind9
+        - named
+        - mysql
+        - mariadb
+        - proftpd
+      failed_when: false
+      ignore_errors: true  # noqa: ignore-errors — service may legitimately be absent
+
+    - name: Purge ispmanager / web / DB / FTP / PHP packages
+      ansible.builtin.shell:
+        cmd: |
+          set -euo pipefail
+          pkgs=$(dpkg-query -W -f='${Package}\n' 2>/dev/null \
+            | grep -E '^(ispmanager[0-9]+.*|ispmanager6-lite.*|mgr5.*|ihttpd|bind9|bind9-.*|mysql-(server|client|common).*|mariadb-(server|client|common).*|proftpd.*|php[0-9.]+-.*|php-.*|nginx(-.+)?)$' \
+            || true)
+          if [ -n "${pkgs}" ]; then
+            DEBIAN_FRONTEND=noninteractive apt-get -y --purge remove ${pkgs}
+          fi
+          DEBIAN_FRONTEND=noninteractive apt-get -y autoremove --purge
+          DEBIAN_FRONTEND=noninteractive apt-get -y autoclean
+        executable: /bin/bash
+      register: purge_result
+      changed_when: >
+        'Removing' in (purge_result.stdout | default(''))
+        or 'Purging' in (purge_result.stdout | default(''))
+
+    - name: Remove leftover state directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /usr/local/mgr5
+        - /usr/local/ispmgr
+        - /var/www/ihttpd
+        - /var/www
+        - /etc/bind
+        - /var/lib/bind
+        - /var/lib/mysql
+        - /etc/mysql
+        - /etc/proftpd
+        - /etc/nginx
+        - /var/log/ispmgr
+        - /var/log/nginx
+        - /var/log/mysql
+        - /var/log/named
+        - /var/cache/nginx
+
+    - name: Flush iptables (firewall role installs nftables next)
+      ansible.builtin.shell:
+        cmd: |
+          iptables -F
+          iptables -t nat -F
+          iptables -t mangle -F
+          iptables -X
+          iptables -P INPUT ACCEPT
+          iptables -P FORWARD DROP
+          iptables -P OUTPUT ACCEPT
+        executable: /bin/bash
+      changed_when: true
+
+    - name: Reboot the box
+      ansible.builtin.reboot:
+        reboot_timeout: 300
+        post_reboot_delay: 10
+
+  post_tasks:
+    - name: Enumerate any lingering purge-target unit files (expect none)
+      ansible.builtin.shell:
+        cmd: |
+          systemctl list-unit-files --type=service --no-legend 2>/dev/null \
+            | awk '{print $1}' \
+            | grep -E '^(ispmgr|mgr5|ihttpd|nginx|bind9|named|mysql|mariadb|proftpd|php)' \
+            || true
+        executable: /bin/bash
+      register: lingering_services
+      changed_when: false
+
+    - name: Report wipe status
+      ansible.builtin.debug:
+        msg:
+          - "Wipe complete on MaskanyaHopMsk."
+          - "Lingering purge-target unit files: {{ (lingering_services.stdout_lines | default([])) or ['none'] }}"
+          - "Next: `make bootstrap HOST=MaskanyaHopMsk -e 'ansible_user=root ansible_port=22'`"

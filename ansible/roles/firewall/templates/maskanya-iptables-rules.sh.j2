@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+{{ ansible_managed | comment }}
+#
+# Additive INPUT rules for the shared-use host. Every add is guarded with
+# `iptables -C` so re-runs are idempotent. This script never flushes, never
+# changes policy, never touches DOCKER, DOCKER-USER, f2b-sshd, ispmgr_*, etc.
+#
+# Rules installed:
+#   - TCP {{ xray_inbound_port }} (Reality) from entry WAN IPs only
+#   - UDP {{ awg_listen_port }} (AmneziaWG) from authorised peer public IPs only
+
+set -euo pipefail
+
+REALITY_SRC_IPS=(
+{% for ip in (exit_allowed_entry_ips | default([])) %}
+    "{{ ip }}"
+{% endfor %}
+)
+
+{# AWG sources — on the hub, all spoke public IPs; on a spoke, the hub's public IP. #}
+{% if awg_role == 'hub' %}
+  {%- set awg_src_ips = [] -%}
+  {%- for h in (groups['entries'] | default([])) + (groups['exits'] | default([])) -%}
+    {%- if h != inventory_hostname and hostvars[h].public_ipv4 is defined -%}
+      {%- set _ = awg_src_ips.append(hostvars[h].public_ipv4) -%}
+    {%- endif -%}
+  {%- endfor -%}
+{% else %}
+  {%- set hub_name = (groups['mgmt'] | first) -%}
+  {%- set awg_src_ips = [hostvars[hub_name].public_ipv4] -%}
+{% endif %}
+
+AWG_SRC_IPS=(
+{% for ip in (awg_src_ips | unique) %}
+    "{{ ip }}"
+{% endfor %}
+)
+
+add_rule_if_missing() {
+    local proto="$1" port="$2" src="$3" comment="$4"
+    if ! iptables -C INPUT -p "$proto" --dport "$port" -s "$src" -j ACCEPT \
+         -m comment --comment "$comment" 2>/dev/null; then
+        iptables -A INPUT -p "$proto" --dport "$port" -s "$src" -j ACCEPT \
+          -m comment --comment "$comment"
+        echo "added: $proto/$port from $src ($comment)"
+    fi
+}
+
+for ip in "${REALITY_SRC_IPS[@]:-}"; do
+    [ -n "${ip}" ] && add_rule_if_missing tcp {{ xray_inbound_port }} "$ip" "maskanya-reality"
+done
+
+for ip in "${AWG_SRC_IPS[@]:-}"; do
+    [ -n "${ip}" ] && add_rule_if_missing udp {{ awg_listen_port }} "$ip" "maskanya-awg"
+done

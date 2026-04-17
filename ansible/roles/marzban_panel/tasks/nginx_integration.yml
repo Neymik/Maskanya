@@ -1,0 +1,116 @@
+---
+# Integrate with the EXISTING nginx on ZenithOfVastness. Never touch nginx.conf,
+# never touch existing vhosts, never replace the package. We only drop two new
+# site files + issue two certs via HTTP-01 webroot.
+
+- name: Ensure certbot is installed
+  ansible.builtin.apt:
+    name:
+      - certbot
+      - python3-certbot-nginx
+    state: present
+
+- name: Ensure ACME webroot exists
+  ansible.builtin.file:
+    path: "{{ certbot_webroot }}"
+    state: directory
+    owner: www-data
+    group: www-data
+    mode: "0755"
+
+- name: Check existing cert for subscription host
+  ansible.builtin.stat:
+    path: "/etc/letsencrypt/live/{{ subscription_public_host }}/fullchain.pem"
+  register: sub_cert
+
+- name: Check existing cert for panel host
+  ansible.builtin.stat:
+    path: "/etc/letsencrypt/live/{{ panel_domain }}/fullchain.pem"
+  register: panel_cert
+
+# --- Stage 1: HTTP-only vhosts so certbot's HTTP-01 challenge can succeed -----
+
+- name: Deploy HTTP-only subscription vhost (temporary until cert issued)
+  ansible.builtin.template:
+    src: maskanya-sub-http.conf.j2
+    dest: "{{ nginx_sites_available }}/maskanya-sub"
+    owner: root
+    group: root
+    mode: "0644"
+  when: not sub_cert.stat.exists
+  notify: reload nginx
+
+- name: Deploy HTTP-only panel vhost (temporary until cert issued)
+  ansible.builtin.template:
+    src: maskanya-panel-http.conf.j2
+    dest: "{{ nginx_sites_available }}/maskanya-panel"
+    owner: root
+    group: root
+    mode: "0644"
+  when: not panel_cert.stat.exists
+  notify: reload nginx
+
+- name: Enable subscription vhost
+  ansible.builtin.file:
+    src: "{{ nginx_sites_available }}/maskanya-sub"
+    dest: "{{ nginx_sites_enabled }}/maskanya-sub"
+    state: link
+  notify: reload nginx
+
+- name: Enable panel vhost
+  ansible.builtin.file:
+    src: "{{ nginx_sites_available }}/maskanya-panel"
+    dest: "{{ nginx_sites_enabled }}/maskanya-panel"
+    state: link
+  notify: reload nginx
+
+- name: Flush nginx reload handlers so certbot can run through the HTTP vhost
+  ansible.builtin.meta: flush_handlers
+
+# --- Stage 2: issue certs via HTTP-01 webroot ---------------------------------
+
+- name: Issue LE cert for subscription host (HTTP-01 webroot)
+  ansible.builtin.command:
+    cmd: >-
+      certbot certonly --webroot -w {{ certbot_webroot }}
+      -d {{ subscription_public_host }}
+      -m {{ operator_acme_email }} --agree-tos -n
+      --keep-until-expiring
+    creates: "/etc/letsencrypt/live/{{ subscription_public_host }}/fullchain.pem"
+
+- name: Issue LE cert for panel host (HTTP-01 webroot)
+  ansible.builtin.command:
+    cmd: >-
+      certbot certonly --webroot -w {{ certbot_webroot }}
+      -d {{ panel_domain }}
+      -m {{ operator_acme_email }} --agree-tos -n
+      --keep-until-expiring
+    creates: "/etc/letsencrypt/live/{{ panel_domain }}/fullchain.pem"
+  # If panel_domain is CF-proxied and HTTP-01 fails, the operator can either
+  # (a) temporarily disable CF proxy on that record and re-run, or
+  # (b) switch to DNS-01 by adding a scoped Cloudflare API token and using
+  #     --dns-cloudflare here instead.
+
+# --- Stage 3: replace vhosts with full HTTP + HTTPS blocks --------------------
+
+- name: Deploy full subscription vhost (HTTP + HTTPS)
+  ansible.builtin.template:
+    src: maskanya-sub-full.conf.j2
+    dest: "{{ nginx_sites_available }}/maskanya-sub"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: reload nginx
+
+- name: Deploy full panel vhost (HTTP + HTTPS, mesh-only allow)
+  ansible.builtin.template:
+    src: maskanya-panel-full.conf.j2
+    dest: "{{ nginx_sites_available }}/maskanya-panel"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: reload nginx
+
+- name: Validate nginx config before reload
+  ansible.builtin.command: nginx -t
+  changed_when: false

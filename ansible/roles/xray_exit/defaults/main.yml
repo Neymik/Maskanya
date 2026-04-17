@@ -1,0 +1,4 @@
+---
+# Most exit-role values come from group_vars/exits.yml + host_vars.
+# xray_exit_api_port: the mesh-only dokodemo-door endpoint for stats.
+xray_exit_api_port: 10085

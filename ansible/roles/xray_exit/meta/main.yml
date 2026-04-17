@@ -1,0 +1,15 @@
+---
+galaxy_info:
+  role_name: xray_exit
+  author: Maskanya
+  description: xray VLESS+Reality exit inbound + freedom outbound
+  license: MIT
+  min_ansible_version: "2.14"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - jammy
+        - noble
+
+dependencies:
+  - role: xray_common

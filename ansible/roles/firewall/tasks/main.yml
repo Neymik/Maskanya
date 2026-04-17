@@ -1,0 +1,10 @@
+---
+- name: nftables path (dedicated Maskanya nodes)
+  ansible.builtin.import_tasks: nftables.yml
+  when: not preserve_iptables
+  tags: [firewall, nftables]
+
+- name: iptables-additive path (shared-use hosts with Docker/existing workloads)
+  ansible.builtin.import_tasks: iptables_additive.yml
+  when: preserve_iptables
+  tags: [firewall, iptables]

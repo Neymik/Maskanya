@@ -1,0 +1,14 @@
+---
+- name: Deploy xray-maskanya systemd unit
+  ansible.builtin.template:
+    src: xray-maskanya.service.j2
+    dest: "/etc/systemd/system/{{ xray_service_name }}.service"
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - reload systemd
+    - restart xray-maskanya
+
+# NOTE: service is not enabled/started here — the role is "common". xray_entry
+# or xray_exit deploys config.json and starts the unit.

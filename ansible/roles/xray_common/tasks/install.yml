@@ -1,0 +1,67 @@
+---
+- name: Install unzip (needed to extract xray release)
+  ansible.builtin.apt:
+    name: unzip
+    state: present
+
+- name: Create xray system user
+  ansible.builtin.user:
+    name: "{{ xray_user }}"
+    system: true
+    shell: /usr/sbin/nologin
+    home: "{{ xray_config_dir }}"
+    create_home: false
+
+- name: Ensure xray directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ xray_user }}"
+    group: "{{ xray_user }}"
+    mode: "0750"
+  loop:
+    - "{{ xray_config_dir }}"
+    - "{{ xray_log_dir }}"
+    - "{{ xray_share_dir }}"
+
+- name: Download Xray-core release zip
+  ansible.builtin.get_url:
+    url: "https://github.com/XTLS/Xray-core/releases/download/v{{ xray_version }}/Xray-linux-64.zip"
+    dest: "/tmp/xray-{{ xray_version }}.zip"
+    checksum: "sha256:{{ xray_sha256 }}"
+    mode: "0644"
+
+- name: Ensure xray extract dir exists
+  ansible.builtin.file:
+    path: "/tmp/xray-{{ xray_version }}-src"
+    state: directory
+    mode: "0755"
+
+- name: Extract xray zip
+  ansible.builtin.unarchive:
+    src: "/tmp/xray-{{ xray_version }}.zip"
+    dest: "/tmp/xray-{{ xray_version }}-src"
+    remote_src: true
+    creates: "/tmp/xray-{{ xray_version }}-src/xray"
+
+- name: Install xray-maskanya binary (namespaced — won't collide with x-ui's xray on ZOV)
+  ansible.builtin.copy:
+    src: "/tmp/xray-{{ xray_version }}-src/xray"
+    dest: "{{ xray_binary_path }}"
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0755"
+  notify: restart xray-maskanya
+
+- name: Install geoip/geosite data
+  ansible.builtin.copy:
+    src: "/tmp/xray-{{ xray_version }}-src/{{ item }}"
+    dest: "{{ xray_share_dir }}/{{ item }}"
+    remote_src: true
+    owner: "{{ xray_user }}"
+    group: "{{ xray_user }}"
+    mode: "0644"
+  loop:
+    - geoip.dat
+    - geosite.dat

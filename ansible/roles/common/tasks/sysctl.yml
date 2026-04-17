@@ -1,0 +1,9 @@
+---
+- name: Deploy namespaced sysctl hardening
+  ansible.builtin.template:
+    src: 99-maskanya-hardening.conf.j2
+    dest: /etc/sysctl.d/99-maskanya-hardening.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: reload sysctl

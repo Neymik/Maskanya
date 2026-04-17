@@ -1,0 +1,45 @@
+---
+# MaskanyaExitKZ1 — Kazakhstan, dedicated exit. STUB for Phase 3.
+#
+# Uncomment and fill in once the VPS is provisioned. Until then this host is
+# unreachable, so playbooks skip it (Ansible gracefully handles UNREACHABLE when
+# it's not included via --limit).
+
+# --- Connection --------------------------------------------------------------
+
+ansible_host: MaskanyaExitKZ1
+# public_ipv4: TBD — fill in after VPS order
+
+# --- AmneziaWG (spoke on awg1) -----------------------------------------------
+
+awg_role: spoke
+awg_address: 10.77.0.50
+# awg_public_ip: "{{ public_ipv4 }}"
+# awg_public_key: filled in after first `amneziawg` role run
+
+# --- xray / Reality ----------------------------------------------------------
+# Dedicated exit — port 443 (no nginx to share with).
+
+xray_inbound_port: 443
+reality_sni: www.kakao.com         # must differ from ZOV's www.samsung.com and MSK's www.nintendo.co.jp
+reality_short_id: c4a1e9d7
+# reality_public_key: filled in after first `xray_common` role run
+
+exit_allowed_entry_ips:
+  - 82.146.35.191   # MaskanyaHopMsk WAN; append more when additional entries come online
+
+# exit_chains — uncomment once msk_kz_chain_uuid is added to
+# secrets/xray_clients.yml (Phase 3, when KZ1 comes online).
+# exit_chains:
+#   - chain_name: msk-kz
+#     chain_uuid_key: msk_kz_chain_uuid
+exit_chains: []
+
+# --- Preservation flags (all FALSE — dedicated node) -------------------------
+
+preserve_nginx: false
+preserve_iptables: false
+preserve_awg0: false
+preserve_timesyncd: false
+preserve_fail2ban: false
+preserve_docker: false

@@ -1,0 +1,14 @@
+---
+galaxy_info:
+  role_name: amneziawg
+  author: Maskanya
+  description: AmneziaWG mesh — Maskanya control plane on separate awg1 interface
+  license: MIT
+  min_ansible_version: "2.14"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - jammy
+        - noble
+
+dependencies: []

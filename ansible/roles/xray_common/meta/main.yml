@@ -1,0 +1,14 @@
+---
+galaxy_info:
+  role_name: xray_common
+  author: Maskanya
+  description: Install xray-core as xray-maskanya and generate Reality keypair
+  license: MIT
+  min_ansible_version: "2.14"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - jammy
+        - noble
+
+dependencies: []

@@ -1,0 +1,34 @@
+---
+# Full exit-node onboarding. Usage: `make add-exit HOST=<NewExitName>`.
+#
+# After this runs the operator must:
+#   1. Commit the newly generated Reality public key into
+#      host_vars/<NewExitName>.yml as `reality_public_key`.
+#   2. Append a new entry to `xray_exit_targets` in host_vars/<EntryHost>.yml
+#      for each entry that should be able to forward through this exit.
+#   3. Re-run xray_entry on those entries.
+
+- name: Baseline + firewall + mesh + metrics
+  hosts: all
+  gather_facts: true
+  become: true
+  roles:
+    - common
+    - firewall
+    - amneziawg
+    - node_exporter
+
+- name: xray exit stack
+  hosts: exits
+  gather_facts: true
+  become: true
+  roles:
+    - xray_common
+    - xray_exit
+
+- name: Re-converge AmneziaWG hub to pick up new peer
+  hosts: mgmt
+  gather_facts: true
+  become: true
+  roles:
+    - amneziawg

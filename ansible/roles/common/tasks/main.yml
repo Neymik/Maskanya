@@ -1,0 +1,35 @@
+---
+# Common-role entry point. Every subsystem below respects preserve_* flags so
+# ZenithOfVastness (which carries 20+ unrelated Docker containers, 13 nginx
+# vhosts, existing awg0, fail2ban, and systemd-timesyncd) is never disturbed.
+
+- name: User — create admin account + authorized_keys + sudoers
+  ansible.builtin.import_tasks: user.yml
+  tags: [common, user]
+
+- name: Packages — baseline utilities + unattended-upgrades
+  ansible.builtin.import_tasks: packages.yml
+  tags: [common, packages]
+
+- name: Sysctl — namespaced hardening drop-in
+  ansible.builtin.import_tasks: sysctl.yml
+  tags: [common, sysctl]
+
+- name: Chrony — NTP on dedicated Maskanya nodes only
+  ansible.builtin.import_tasks: chrony.yml
+  when: not preserve_timesyncd
+  tags: [common, chrony]
+
+- name: Journald — volatile storage on entries, default elsewhere, skip ZOV
+  ansible.builtin.import_tasks: journald.yml
+  when: not preserve_journald
+  tags: [common, journald]
+
+- name: Fail2ban — install only when not already present
+  ansible.builtin.import_tasks: fail2ban.yml
+  when: not preserve_fail2ban
+  tags: [common, fail2ban]
+
+- name: SSH — hardened drop-in (port change fires at end of play)
+  ansible.builtin.import_tasks: ssh.yml
+  tags: [common, ssh]

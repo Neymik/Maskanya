@@ -1,0 +1,16 @@
+---
+# xray_version comes from group_vars/all.yml.
+
+xray_binary_path: /usr/local/bin/xray-maskanya    # namespaced — don't collide with x-ui on ZOV
+xray_config_dir: /etc/xray
+xray_log_dir: /var/log/xray
+xray_share_dir: /usr/local/share/xray-maskanya
+xray_user: xray-maskanya
+xray_service_name: xray-maskanya
+
+xray_reality_private_key_path: "{{ xray_config_dir }}/reality_private.key"
+xray_reality_public_key_path: "{{ xray_config_dir }}/reality_public.key"
+
+# SHA256 for Xray-core v1.8.24 Xray-linux-64.zip. Bump in lockstep with
+# xray_version.
+xray_sha256: "b63466ff82db5f7c65fb3d0e3a5a4e7f12cce52d3d5a2af33fe8d9bbc7f41f1a"

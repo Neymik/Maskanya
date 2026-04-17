@@ -1,0 +1,51 @@
+---
+# ZenithOfVastness — Netherlands, dual-role mgmt + test exit, SHARED-USE host.
+#
+# This machine carries 20+ unrelated Docker containers, 13 production nginx vhosts,
+# an existing AmneziaWG mesh on awg0 (UDP 51820), certbot, fail2ban, and
+# systemd-timesyncd. Every Maskanya role must leave all of that alone.
+
+# --- Connection --------------------------------------------------------------
+
+ansible_host: ZenithOfVastness   # resolves via ~/.ssh/config
+public_ipv4: 103.137.249.134
+
+# --- AmneziaWG (hub on awg1; ZOV's own unrelated awg0 stays untouched) -------
+
+awg_role: hub
+awg_address: 10.77.0.1
+awg_public_ip: "{{ public_ipv4 }}"
+# awg_public_key: filled in after first `amneziawg` role run generates the keypair
+# Example: awg_public_key: "abcd...="
+
+# --- xray / Reality ----------------------------------------------------------
+
+xray_inbound_port: 8443            # override group_vars/exits default — matches nginx-free alt port
+reality_sni: www.samsung.com       # must differ from MaskanyaHopMsk's entry SNI
+reality_short_id: a7f2c9b4         # 8-hex, committed (not secret, shared with entry outbound)
+# reality_public_key: filled in after first `xray_common` role run generates Reality keys
+
+# Source-IP allowlist for the Reality :8443 inbound — only authorized entries may reach it.
+exit_allowed_entry_ips:
+  - 82.146.35.191   # MaskanyaHopMsk WAN
+
+# Which chains terminate at this exit. Each entry maps a human-readable chain
+# name to a SOPS key in secrets/xray_clients.yml under `chain_links`.
+exit_chains:
+  - chain_name: msk-nl
+    chain_uuid_key: msk_nl_chain_uuid
+
+# --- Preservation flags (all TRUE on this host) ------------------------------
+
+preserve_nginx: true        # 13 production vhosts live here on :80/:443
+preserve_iptables: true     # Docker owns DOCKER/DOCKER-USER chains; do NOT install nftables
+preserve_awg0: true         # unrelated mesh from another project
+preserve_timesyncd: true    # don't install chrony here; existing time sync works
+preserve_fail2ban: true     # already running; add our jail, don't reinstall
+preserve_docker: true       # never touch DOCKER chains or daemon config
+preserve_x_ui: true         # x-ui's xray at /usr/local/x-ui/xray-linux-amd64 untouched
+preserve_journald: true     # don't reconfigure journald — long-running hosts need persistent logs
+
+# --- Marzban panel lives on this host ----------------------------------------
+
+marzban_enabled: true
