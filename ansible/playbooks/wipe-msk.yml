@@ -69,6 +69,22 @@
         seconds: 5
         prompt: "Proceeding in 5 seconds. Ctrl-C now to abort."
 
+    - name: Preserve root's SSH authorized_keys across the wipe
+      # Defensive copy — on FirstVDS ispmanager images the apt purge cascade
+      # (or ispmanager's own postrm hooks) has been observed to take out
+      # /root/.ssh/authorized_keys, locking us out after reboot. We save it
+      # to /root/maskanya-wipe-backup/ and restore below in post_tasks if the
+      # original is missing.
+      ansible.builtin.shell:
+        cmd: |
+          set -eu
+          if [ -d /root/.ssh ]; then
+            mkdir -p /root/maskanya-wipe-backup
+            cp -a /root/.ssh /root/maskanya-wipe-backup/ssh
+          fi
+        executable: /bin/bash
+      changed_when: true
+
   tasks:
     - name: Stop services scheduled for purge (failures ignored — service may be absent)
       ansible.builtin.systemd:
@@ -140,14 +156,43 @@
         executable: /bin/bash
       changed_when: true
 
+    - name: Restore root's SSH authorized_keys if the wipe destroyed it
+      # Run BEFORE the reboot — we need SSH to come back up working.
+      ansible.builtin.shell:
+        cmd: |
+          set -eu
+          if [ ! -s /root/.ssh/authorized_keys ] \
+             && [ -f /root/maskanya-wipe-backup/ssh/authorized_keys ]; then
+            mkdir -p /root/.ssh
+            chmod 700 /root/.ssh
+            cp -a /root/maskanya-wipe-backup/ssh/authorized_keys /root/.ssh/authorized_keys
+            chmod 600 /root/.ssh/authorized_keys
+            chown root:root /root/.ssh /root/.ssh/authorized_keys
+            echo "RESTORED authorized_keys from backup"
+          else
+            echo "authorized_keys intact — no restore needed"
+          fi
+        executable: /bin/bash
+      register: ssh_restore
+      changed_when: "'RESTORED' in ssh_restore.stdout"
+
+    - name: Report authorized_keys restore status
+      ansible.builtin.debug:
+        var: ssh_restore.stdout
+
     - name: Reboot the box
       ansible.builtin.reboot:
         reboot_timeout: 300
         post_reboot_delay: 10
 
   post_tasks:
+    - name: Clean up wipe backup directory (only after successful reconnect)
+      ansible.builtin.file:
+        path: /root/maskanya-wipe-backup
+        state: absent
+
     - name: Enumerate any lingering purge-target unit files (expect none)
-      ansible.builtin.shell:
+      ansible.builtin.shell:  # noqa: command-instead-of-module — we are querying, not controlling services
         cmd: |
           systemctl list-unit-files --type=service --no-legend 2>/dev/null \
             | awk '{print $1}' \

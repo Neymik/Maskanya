@@ -34,8 +34,11 @@ table inet filter {
         ip protocol icmp limit rate 10/second accept
         ip6 nexthdr icmpv6 limit rate 10/second accept
 
-        # SSH from the control mesh only.
-        tcp dport {{ admin_ssh_port }} ip saddr {{ awg_subnet }} accept
+        # SSH: public for Phase 1 so the operator can bootstrap without first
+        # joining the mesh. Security relies on pubkey-only auth + fail2ban
+        # (both set up by the common role). Once the operator laptop is a
+        # stable AWG peer we can tighten this to `ip saddr {{ awg_subnet }}`.
+        tcp dport {{ admin_ssh_port }} accept
 
         # AmneziaWG UDP from authorized peer public IPs.
         udp dport {{ awg_listen_port }} ip saddr { {{ awg_src_ips | unique | join(', ') }} } accept

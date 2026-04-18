@@ -2,8 +2,10 @@
 # Maskanya sshd hardening. Higher-priority than /etc/ssh/sshd_config.
 # Keep this block minimal; if you need to add a directive, do it here
 # (not in the stock sshd_config).
+#
+# sshd intentionally stays on port 22 (OpenSSH default). Security is enforced
+# via pubkey-only + no-root + MaxAuthTries, not by port obscurity.
 
-Port {{ admin_ssh_port }}
 PermitRootLogin no
 PasswordAuthentication no
 KbdInteractiveAuthentication no

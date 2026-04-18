@@ -2,7 +2,10 @@
 # Defaults for the common role. Override via group_vars/host_vars.
 
 admin_user: admin
-admin_ssh_port: 2222
+# sshd stays on port 22 — reliability > obscurity. Hardening is via
+# pubkey-only + no-root + MaxAuthTries, not port change. See
+# feedback/memory note on this decision.
+admin_ssh_port: 22
 
 # journald defaults (entries override storage=volatile in group_vars/entries.yml).
 journald_storage: persistent

@@ -7,6 +7,6 @@
   ansible.builtin.import_tasks: keygen.yml
   tags: [amneziawg, keygen]
 
-- name: Render {{ awg_interface }}.conf and start the interface
+- name: Render AmneziaWG config and start interface {{ awg_interface }}
   ansible.builtin.import_tasks: configure.yml
   tags: [amneziawg, configure]

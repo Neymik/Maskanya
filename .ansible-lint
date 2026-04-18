@@ -10,7 +10,16 @@ exclude_paths:
 skip_list:
   - experimental
   - fqcn-builtins
+  # Handler names begin with lowercase by Ansible-core convention; flagging them
+  # as casing errors is overzealous.
+  - name[casing]
+  # xray_common, amneziawg, common etc. export defaults intentionally consumed
+  # by sibling roles (xray_entry, firewall, etc.). Enforcing role-prefix naming
+  # would muddle the explicit contract.
+  - var-naming[no-role-prefix]
+  # Style-only.
+  - yaml[line-length]
+  - yaml[comments-indentation]
 
 warn_list:
   - role-name
-  - yaml[line-length]

@@ -12,7 +12,10 @@ admin_authorized_keys:
   # literal "ssh-ed25519 AAAA... user@host" strings.
 
 admin_user: admin
-admin_ssh_port: 2222  # non-standard; applied after first-contact bootstrap confirms key login
+# Keep sshd on port 22 — security is via pubkey-only + no-root; port obscurity
+# adds fragility (ssh.socket on Ubuntu 22.10+ binds :22 regardless of sshd_config)
+# without meaningful benefit.
+admin_ssh_port: 22
 
 # --- Domains -----------------------------------------------------------------
 

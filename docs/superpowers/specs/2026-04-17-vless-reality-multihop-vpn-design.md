@@ -383,7 +383,7 @@ Operator UX — single commands: `make lint`, `make syntax-check`, `make apply`,
 
 ### Per-Host Hardening (via `common` role)
 
-- SSH: key-only, no root, non-standard port, `MaxAuthTries 3` (port change applied **after** key-based admin login is verified)
+- SSH: port 22 (OpenSSH default — reliability over obscurity), key-only, no root, `MaxAuthTries 3`. Security is enforced by pubkey-only auth + fail2ban, not port change. Port-change attempts on Ubuntu 22.10+ require disabling `ssh.socket` and add fragility with no real gain.
 - `unattended-upgrades` with auto-reboot in maintenance window (03:00 local, jittered)
 - `fail2ban` on mgmt for subscription endpoint (rate-limit 404 tokens) — on ZOV use the **existing** fail2ban install; add our jail, don't reinstall
 - `chrony` for time sync on dedicated Maskanya nodes only; **preserve ZOV's existing systemd-timesyncd**
@@ -392,8 +392,8 @@ Operator UX — single commands: `make lint`, `make syntax-check`, `make apply`,
 
 ### Firewall per Role
 
-- **Entry (dedicated, nftables):** `443/tcp` from anywhere; AWG `51821/udp` from hub peer only; SSH (custom port) from mesh only; node_exporter `9100/tcp` bound to mesh IP; drop else
-- **Exit (dedicated, nftables):** `443/tcp` from entry WAN IPs only (allowlist); AWG from hub; SSH from mesh; drop else
+- **Entry (dedicated, nftables):** `443/tcp` from anywhere; AWG `51821/udp` from hub peer only; SSH `22/tcp` public (pubkey-only + fail2ban; tighten to `ip saddr {{ awg_subnet }}` once operator laptop is a stable peer); node_exporter `9100/tcp` bound to mesh IP; drop else
+- **Exit (dedicated, nftables):** `443/tcp` from entry WAN IPs only (allowlist); AWG from hub; SSH `22/tcp` public (same pubkey-only + fail2ban); drop else
 - **Exit (shared-use — ZenithOfVastness, iptables-additive):** append INPUT rules via `iptables -C … || iptables -A …` (idempotent) for `8443/tcp` (Reality from entry WAN IPs only) and `51821/udp` (AWG from entry WAN IPs only); leave DOCKER, DOCKER-USER, f2b-sshd, and any other existing chains untouched; no flushes, no policy changes
 - **Mgmt (same host as shared-use exit):** Marzban + Grafana vhosts in existing nginx bound to mesh IP; subscription vhost publicly reachable on existing `:443`; nothing else exposed
 
