@@ -31,6 +31,10 @@ keys.txt
 *.swo
 *~
 
+# Claude Code workspace state (memory index lives alongside the repo, not in it)
+/MEMORY.md
+.claude/
+
 # Local overrides
 local.yml
 ansible/inventory/local/

@@ -5,6 +5,25 @@
   changed_when: false
   failed_when: docker_version.rc != 0
 
+# On hosts running docker.io from Ubuntu's repo (e.g. ZOV), the Compose V2 CLI
+# plugin is not shipped. community.docker.docker_compose_v2 requires it. We
+# drop the official binary into /usr/local/lib/docker/cli-plugins — a plugin-only
+# location that doesn't touch the daemon config (preserve_docker safe).
+- name: Check for docker compose plugin
+  ansible.builtin.command: docker compose version
+  register: docker_compose_check
+  changed_when: false
+  failed_when: false
+
+- name: Install Docker Compose V2 CLI plugin (if absent)
+  ansible.builtin.get_url:
+    url: "https://github.com/docker/compose/releases/download/{{ docker_compose_version }}/docker-compose-linux-x86_64"
+    dest: /usr/local/lib/docker/cli-plugins/docker-compose
+    owner: root
+    group: root
+    mode: "0755"
+  when: docker_compose_check.rc != 0
+
 - name: Ensure marzban install dir exists
   ansible.builtin.file:
     path: "{{ marzban_install_dir }}"
@@ -38,10 +57,12 @@
     wait_timeout: 180
 
 - name: Wait for Marzban API to respond on mesh
+  # /docs is the unauthenticated OpenAPI UI and is present in every Marzban
+  # version — a reliable liveness probe. /api/system was dropped upstream.
   ansible.builtin.uri:
-    url: "http://{{ marzban_listen_address }}:{{ marzban_listen_port }}/api/system"
-    status_code: [200, 401, 403]
+    url: "http://{{ marzban_listen_address }}:{{ marzban_listen_port }}/docs"
+    status_code: [200]
   register: marzban_health
   retries: 30
   delay: 2
-  until: marzban_health.status in [200, 401, 403]
+  until: marzban_health.status == 200

@@ -7,7 +7,11 @@
 
 # --- Connection --------------------------------------------------------------
 
-ansible_host: ZenithOfVastness   # resolves via ~/.ssh/config
+ansible_host: ZenithOfVastness   # resolves via ~/.ssh/config on the laptop; /etc/hosts on ZOV itself
+ansible_connection: local        # controller now lives on ZOV itself — skip SSH self-loopback
+ansible_user: root               # ZOV is shared-use: we keep the operator's
+                                 # preexisting root access and never create a
+                                 # parallel admin user (see preserve_* below).
 public_ipv4: 103.137.249.134
 
 # --- AmneziaWG (hub on awg1; ZOV's own unrelated awg0 stays untouched) -------
@@ -15,15 +19,15 @@ public_ipv4: 103.137.249.134
 awg_role: hub
 awg_address: 10.77.0.1
 awg_public_ip: "{{ public_ipv4 }}"
-# awg_public_key: filled in after first `amneziawg` role run generates the keypair
-# Example: awg_public_key: "abcd...="
+awg_public_key: "ZQWEAZq9GlYva3mYZWBoVI41qXsg22p7lnTlGFWmFzg="
 
 # --- xray / Reality ----------------------------------------------------------
 
-xray_inbound_port: 8443            # override group_vars/exits default — matches nginx-free alt port
+xray_inbound_port: 8444            # override group_vars/exits default — 8443 is taken by mtg (MTProto), nginx owns :443
+
 reality_sni: www.samsung.com       # must differ from MaskanyaHopMsk's entry SNI
 reality_short_id: a7f2c9b4         # 8-hex, committed (not secret, shared with entry outbound)
-# reality_public_key: filled in after first `xray_common` role run generates Reality keys
+reality_public_key: "aiVYxkLAcaCrBgo1UwyRvg-nk1I5kmC8FHOMl5qqBj0"
 
 # Source-IP allowlist for the Reality :8443 inbound — only authorized entries may reach it.
 exit_allowed_entry_ips:
@@ -45,6 +49,16 @@ preserve_fail2ban: true     # already running; add our jail, don't reinstall
 preserve_docker: true       # never touch DOCKER chains or daemon config
 preserve_x_ui: true         # x-ui's xray at /usr/local/x-ui/xray-linux-amd64 untouched
 preserve_journald: true     # don't reconfigure journald — long-running hosts need persistent logs
+preserve_ssh: true          # operator's preexisting root access is authoritative here;
+                            # sshd_config + authorized_keys must never be rewritten
+preserve_admin_user: true   # no parallel admin account — we connect as root (above)
+
+# --- Project filesystem ------------------------------------------------------
+# Root fs is 81% full; /data is the spacious volume on this host. Named
+# `maskanya-management` (not `Maskanya`) so it cannot be confused with the
+# controller repo at /data/maskanya.
+
+maskanya_project_root: /data/maskanya-management
 
 # --- Marzban panel lives on this host ----------------------------------------
 

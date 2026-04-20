@@ -5,6 +5,7 @@
 
 - name: User — create admin account + authorized_keys + sudoers
   ansible.builtin.import_tasks: user.yml
+  when: not preserve_admin_user
   tags: [common, user]
 
 - name: Packages — baseline utilities + unattended-upgrades
@@ -30,6 +31,16 @@
   when: not preserve_fail2ban
   tags: [common, fail2ban]
 
-- name: SSH — hardened drop-in (port change fires at end of play)
+- name: SSH — hardened drop-in (skipped on hosts with preserve_ssh)
   ansible.builtin.import_tasks: ssh.yml
+  when: not preserve_ssh
   tags: [common, ssh]
+
+- name: Project root — ensure Maskanya filesystem root exists
+  ansible.builtin.file:
+    path: "{{ maskanya_project_root }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+  tags: [common, project_dir]

@@ -13,9 +13,9 @@
       - amneziawg-tools
     state: present
 
-- name: Ensure /etc/amneziawg exists (0700)
+- name: Ensure AmneziaWG config dir exists (0700)
   ansible.builtin.file:
-    path: /etc/amneziawg
+    path: "{{ awg_config_dir }}"
     state: directory
     owner: root
     group: root

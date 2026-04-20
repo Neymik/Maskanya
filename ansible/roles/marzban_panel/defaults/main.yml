@@ -9,3 +9,7 @@ nginx_sites_enabled: /etc/nginx/sites-enabled
 
 # Marzban subscription path prefix (defaults upstream; keep in sync with .env).
 marzban_sub_path: /sub/
+
+# Docker Compose V2 CLI plugin — installed on-demand when the host runs Ubuntu's
+# docker.io (no plugin) instead of docker-ce (plugin bundled).
+docker_compose_version: "v2.30.3"

@@ -8,6 +8,10 @@ Wants=network-online.target
 Type=simple
 User={{ xray_user }}
 Group={{ xray_user }}
+# Assets (geoip.dat, geosite.dat) live in xray_share_dir — the namespaced path.
+# Xray's default search list covers the binary dir and /usr/local/share/xray,
+# but not our /usr/local/share/xray-maskanya, so point it explicitly.
+Environment=XRAY_LOCATION_ASSET={{ xray_share_dir }}
 ExecStart={{ xray_binary_path }} run -config {{ xray_config_dir }}/config.json
 Restart=on-failure
 RestartSec=5s

@@ -77,6 +77,12 @@
       -m {{ operator_acme_email }} --agree-tos -n
       --keep-until-expiring
     creates: "/etc/letsencrypt/live/{{ subscription_public_host }}/fullchain.pem"
+  # ZOV runs certbot.timer which briefly holds the letsencrypt lockfile; retry
+  # if we collide with it.
+  register: certbot_sub
+  until: certbot_sub.rc == 0 or 'Another instance of Certbot' not in (certbot_sub.stderr | default(''))
+  retries: 12
+  delay: 10
 
 - name: Issue LE cert for panel host (HTTP-01 webroot)
   ansible.builtin.command:
@@ -86,6 +92,10 @@
       -m {{ operator_acme_email }} --agree-tos -n
       --keep-until-expiring
     creates: "/etc/letsencrypt/live/{{ panel_domain }}/fullchain.pem"
+  register: certbot_panel
+  until: certbot_panel.rc == 0 or 'Another instance of Certbot' not in (certbot_panel.stderr | default(''))
+  retries: 12
+  delay: 10
   # If panel_domain is CF-proxied and HTTP-01 fails, the operator can either
   # (a) temporarily disable CF proxy on that record and re-run, or
   # (b) switch to DNS-01 by adding a scoped Cloudflare API token and using

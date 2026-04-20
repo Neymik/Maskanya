@@ -20,7 +20,7 @@
     owner: "{{ xray_user }}"
     group: "{{ xray_user }}"
     mode: "0640"
-    validate: "{{ xray_binary_path }} run -test -config %s"
+    validate: "env XRAY_LOCATION_ASSET={{ xray_share_dir }} {{ xray_binary_path }} run -test -config %s"
   notify: restart xray-maskanya
   no_log: true
 

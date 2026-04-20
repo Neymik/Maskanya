@@ -1,7 +1,10 @@
 ---
-# Paths on the target host. Namespaced filenames coexist with any unrelated
+# Paths on the target host. The amneziawg-tools package expects configs under
+# /etc/amnezia/amneziawg/ (subdir) — `awg-quick up awgN` refuses otherwise.
+# Namespaced filenames for the keys so we coexist with any unrelated
 # AmneziaWG mesh already on the host (e.g. ZOV's existing awg0).
 
-awg_private_key_path: /etc/amneziawg/maskanya_privatekey
-awg_public_key_path: /etc/amneziawg/maskanya_publickey
-awg_config_path: "/etc/amneziawg/{{ awg_interface }}.conf"
+awg_config_dir: /etc/amnezia/amneziawg
+awg_private_key_path: "{{ awg_config_dir }}/maskanya_privatekey"
+awg_public_key_path: "{{ awg_config_dir }}/maskanya_publickey"
+awg_config_path: "{{ awg_config_dir }}/{{ awg_interface }}.conf"

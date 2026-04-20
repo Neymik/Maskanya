@@ -16,12 +16,12 @@
 
     - name: Remove existing private key
       ansible.builtin.file:
-        path: "{{ awg_private_key_path | default('/etc/amneziawg/maskanya_privatekey') }}"
+        path: "{{ awg_private_key_path | default('/etc/amnezia/amneziawg/maskanya_privatekey') }}"
         state: absent
 
     - name: Remove existing public key
       ansible.builtin.file:
-        path: "{{ awg_public_key_path | default('/etc/amneziawg/maskanya_publickey') }}"
+        path: "{{ awg_public_key_path | default('/etc/amnezia/amneziawg/maskanya_publickey') }}"
         state: absent
 
   roles:

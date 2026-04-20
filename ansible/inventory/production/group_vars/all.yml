@@ -101,3 +101,14 @@ preserve_fail2ban: false
 preserve_docker: false
 preserve_x_ui: false
 preserve_journald: false
+# SSH / user-account hygiene on ZOV is also sacred — the operator already has
+# working pubkey access as root that predates Maskanya. We leave sshd_config
+# and authorized_keys alone on any host with preserve_ssh / preserve_admin_user.
+preserve_ssh: false
+preserve_admin_user: false
+
+# --- Maskanya project filesystem root ----------------------------------------
+# Where Maskanya-owned state lives on the host (compose files, backups, etc.).
+# On dedicated nodes we use /opt/maskanya. On ZenithOfVastness we override to
+# /data/Maskanya because root fs is 81% full and /data is the spacious volume.
+maskanya_project_root: /opt/maskanya

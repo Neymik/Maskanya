@@ -13,4 +13,4 @@ xray_reality_public_key_path: "{{ xray_config_dir }}/reality_public.key"
 
 # SHA256 for Xray-core v1.8.24 Xray-linux-64.zip. Bump in lockstep with
 # xray_version.
-xray_sha256: "b63466ff82db5f7c65fb3d0e3a5a4e7f12cce52d3d5a2af33fe8d9bbc7f41f1a"
+xray_sha256: "47a860787e823474a358d6bca536547df6dd08b69c6de482ea92a9e7e8f8969c"
