@@ -1,4 +1,48 @@
 ---
+# SAFETY GATE — sshd port vs admin_ssh_port must agree before we deploy
+# default-drop nftables. Mismatch = instant SSH lockout, because the ruleset
+# only opens admin_ssh_port. This check saved us once; keep it.
+#
+# Skipped on hosts with preserve_ssh (shared-use hosts run the iptables-additive
+# path anyway, so they never reach this file).
+
+- name: Detect sshd's actual listening TCP port
+  # Aggregates signals from all three sources sshd can get its port from:
+  #   1. sshd -T — effective config as parsed by sshd itself (authoritative
+  #      when sshd starts via ssh.service, not socket activation).
+  #   2. ss — what the running sshd process is actually bound to.
+  #   3. ssh.socket ListenStream — when the distro uses socket activation.
+  # Any of these producing the port number is enough; we only fail if none do.
+  ansible.builtin.shell:
+    cmd: |
+      set -eu
+      { sshd -T 2>/dev/null | awk '/^port /{print $2}'; \
+        ss -Hltn 2>/dev/null | awk '{print $4}' | awk -F: '{print $NF}' \
+          | grep -E '^[0-9]+$' | sort -u; \
+        systemctl show ssh.socket -p ListenStream --value 2>/dev/null \
+          | tr ' ' '\n' | grep -oE '[0-9]+$'; \
+      } | sort -u
+    executable: /bin/bash
+  register: sshd_listening_ports
+  changed_when: false
+  check_mode: false
+
+- name: Assert sshd is listening on admin_ssh_port (else nftables would lock us out)
+  ansible.builtin.assert:
+    that:
+      - (admin_ssh_port | string) in (sshd_listening_ports.stdout_lines | map('trim') | list)
+    fail_msg: >-
+      Refusing to deploy nftables: sshd is listening on
+      {{ sshd_listening_ports.stdout_lines | map('trim') | reject('equalto', '') | list }}
+      but admin_ssh_port is {{ admin_ssh_port }}. The rendered ruleset only opens
+      {{ admin_ssh_port }}/tcp, so applying it would lock SSH out.
+      Reconcile by either (a) moving sshd to {{ admin_ssh_port }} (edit
+      /etc/ssh/sshd_config[.d] or the ssh.socket ListenStream drop-in, then
+      `systemctl daemon-reload && systemctl restart ssh.socket ssh.service`),
+      or (b) overriding `admin_ssh_port` in
+      host_vars/{{ inventory_hostname }}.yml to match the current port.
+      Then re-run.
+
 - name: Install nftables
   ansible.builtin.apt:
     name: nftables

@@ -3,6 +3,8 @@
 # baggage by playbooks/wipe-msk.yml before first common-role run).
 
 # --- Connection --------------------------------------------------------------
+# User / Port / IdentityFile resolve via ~/.ssh/config alias `MaskanyaHopMsk`.
+# ansible_host stays as the alias name so OpenSSH performs the lookup.
 
 ansible_host: MaskanyaHopMsk
 public_ipv4: 82.146.35.191
@@ -12,7 +14,7 @@ public_ipv4: 82.146.35.191
 awg_role: spoke
 awg_address: 10.77.0.10
 awg_public_ip: "{{ public_ipv4 }}"
-# awg_public_key: filled in after first `amneziawg` role run
+awg_public_key: "mamx3D5eekJi1QaxiO3MeYc8SfMzXZhg7MSTw014PBY="
 
 # --- xray / Reality ----------------------------------------------------------
 # Entry inbound (client → MSK) uses 443/tcp + xtls-rprx-vision flow.
@@ -20,7 +22,7 @@ awg_public_ip: "{{ public_ipv4 }}"
 xray_inbound_port: 443
 reality_sni: www.nintendo.co.jp    # must differ from ZOV's exit SNI
 reality_short_id: e3d8b1f5         # 8-hex, for client-side Reality handshake
-# reality_public_key: filled in after first `xray_common` role run
+reality_public_key: "kCLpkOOEG1Ys2X-14qQF_zHkGwA5a20bAKKUdqVRryc"
 
 # --- Exit targets (MSK → exits over public internet, NOT mesh) ---------------
 #
@@ -34,10 +36,10 @@ xray_exit_targets:
     chain_name: msk-nl
     target_host: ZenithOfVastness
     address: 103.137.249.134         # ZOV public IP, NOT mesh IP
-    port: 8443
+    port: 8444                       # ZOV: mtg owns 8443, Reality moved to 8444
     reality_sni: www.samsung.com     # ZOV's SNI
     reality_short_id: a7f2c9b4       # ZOV's short ID
-    # reality_public_key: "<paste ZOV's Reality public key after Step 10>"
+    reality_public_key: "aiVYxkLAcaCrBgo1UwyRvg-nk1I5kmC8FHOMl5qqBj0"
     flow: ""                         # empty — Vision is client→entry only
     # chain_uuid is a SOPS-encrypted shared UUID for the entry→exit VLESS link;
     # pulled from secrets/xray_clients.yml at template time
