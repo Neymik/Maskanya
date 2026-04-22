@@ -57,11 +57,16 @@
     wait_timeout: 180
 
 - name: Wait for Marzban API to respond on mesh
-  # /docs is the unauthenticated OpenAPI UI and is present in every Marzban
-  # version — a reliable liveness probe. /api/system was dropped upstream.
+  # /openapi.json is FastAPI's built-in schema dump — present whenever the
+  # ASGI app is mounted, independent of UI builds. /docs and /health were
+  # dropped in Marzban ≥ 0.8.
+  # HTTPS because Marzban only binds non-loopback when SSL is configured.
+  # validate_certs: no — we reach it via mesh IP; SNI wouldn't match and
+  # cert verification adds no value on the loopback-equivalent link.
   ansible.builtin.uri:
-    url: "http://{{ marzban_listen_address }}:{{ marzban_listen_port }}/docs"
+    url: "https://{{ marzban_listen_address }}:{{ marzban_listen_port }}/openapi.json"
     status_code: [200]
+    validate_certs: no
   register: marzban_health
   retries: 30
   delay: 2

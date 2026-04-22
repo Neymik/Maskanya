@@ -20,7 +20,11 @@ awg_public_key: "mamx3D5eekJi1QaxiO3MeYc8SfMzXZhg7MSTw014PBY="
 # Entry inbound (client → MSK) uses 443/tcp + xtls-rprx-vision flow.
 
 xray_inbound_port: 443
-reality_sni: www.nintendo.co.jp    # must differ from ZOV's exit SNI
+reality_sni: api-maps.yandex.ru    # must differ from ZOV's exit SNI
+# Swapped from www.nintendo.co.jp 2026-04-21 — JP consumer brands flag as
+# low-plausibility destinations from RU residential traffic under the Dec-2025
+# TSPU detector shift. api-maps.yandex.ru is an RU-CDN domain that matches a
+# plausible RU-resident fingerprint; TLS 1.3 + H2 + X25519 verified from MSK.
 reality_short_id: e3d8b1f5         # 8-hex, for client-side Reality handshake
 reality_public_key: "kCLpkOOEG1Ys2X-14qQF_zHkGwA5a20bAKKUdqVRryc"
 
@@ -37,7 +41,7 @@ xray_exit_targets:
     target_host: ZenithOfVastness
     address: 103.137.249.134         # ZOV public IP, NOT mesh IP
     port: 8444                       # ZOV: mtg owns 8443, Reality moved to 8444
-    reality_sni: www.samsung.com     # ZOV's SNI
+    reality_sni: eh.vk.ru            # ZOV's SNI (must match ZOV's reality_sni)
     reality_short_id: a7f2c9b4       # ZOV's short ID
     reality_public_key: "aiVYxkLAcaCrBgo1UwyRvg-nk1I5kmC8FHOMl5qqBj0"
     flow: ""                         # empty — Vision is client→entry only

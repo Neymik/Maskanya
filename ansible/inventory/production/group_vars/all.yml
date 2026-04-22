@@ -54,8 +54,17 @@ awg_junk_params:
 #   - TLS 1.3, HTTP/2, X25519 keyshare
 #   - not blocked from Russia
 #   - not US-owned (avoid collateral RKN blocks on US tech brands)
+#   - reachable from the entry/exit node itself (Reality steals from the real
+#     server over TCP — an SNI blocked from that node fails silently)
+#
+# Pool split by client-vantage: for clients inside RU, RU-accessible SNIs match
+# a plausible residential fingerprint and avoid the post-Dec-2025 TSPU
+# "low-plausibility destination" heuristic. JP/KR entries are retained for
+# future non-RU client scenarios. Whenever a node is pinned to a decoy, verify
+# TLS 1.3 + H2 + X25519 from the node with openssl s_client before committing.
 
 reality_decoy_pool:
+  # Non-RU neutral-country decoys (for non-RU-vantage scenarios)
   - www.lovelive-anime.jp
   - www.nintendo.co.jp
   - www.sony.jp
@@ -64,10 +73,17 @@ reality_decoy_pool:
   - www.lg.com
   - www.naver.com
   - www.kakao.com
+  # RU-accessible decoys (preferred for RU-vantage clients, added 2026-04-21
+  # after the Dec-2025 TSPU detector shift). Each verified TLS 1.3 + H2 + X25519
+  # from MSK and ZOV.
+  - api-maps.yandex.ru
+  - eh.vk.ru
+  - max.ru
+  - dzen.ru
 
 # --- Versions ----------------------------------------------------------------
 
-xray_version: "1.8.24"
+xray_version: "25.12.8"
 node_exporter_version: "1.8.2"
 node_exporter_port: 9100   # bound to mesh IP by the role, not 0.0.0.0
 

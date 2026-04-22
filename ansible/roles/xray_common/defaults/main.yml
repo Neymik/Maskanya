@@ -11,6 +11,7 @@ xray_service_name: xray-maskanya
 xray_reality_private_key_path: "{{ xray_config_dir }}/reality_private.key"
 xray_reality_public_key_path: "{{ xray_config_dir }}/reality_public.key"
 
-# SHA256 for Xray-core v1.8.24 Xray-linux-64.zip. Bump in lockstep with
-# xray_version.
-xray_sha256: "47a860787e823474a358d6bca536547df6dd08b69c6de482ea92a9e7e8f8969c"
+# SHA256 for Xray-core v25.12.8 Xray-linux-64.zip. Bump in lockstep with
+# xray_version. Source:
+# https://github.com/XTLS/Xray-core/releases/download/v25.12.8/Xray-linux-64.zip.dgst
+xray_sha256: "97f20fed49750c24fc389c2946549ba2a374907e07e9adb2ce75799dd80088d9"

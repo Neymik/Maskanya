@@ -36,8 +36,17 @@ server {
     access_log /var/log/nginx/maskanya-panel.access.log;
     error_log  /var/log/nginx/maskanya-panel.error.log;
 
+    # Marzban's "/" is a decorative CSS-only landing with no controls or
+    # auth — the actual admin UI lives at /dashboard/. Send people there.
+    location = / {
+        return 302 /dashboard/;
+    }
+
     location / {
         proxy_pass {{ subscription_upstream }};
+        # Upstream is HTTPS but mesh-local; the cert there exists only to
+        # unlock Marzban's 0.0.0.0 bind, so verification adds no value.
+        proxy_ssl_verify off;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

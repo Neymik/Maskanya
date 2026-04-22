@@ -33,6 +33,9 @@ server {
 
     location {{ marzban_sub_path }} {
         proxy_pass {{ subscription_upstream }};
+        # Upstream is HTTPS but mesh-local; the cert there exists only to
+        # unlock Marzban's 0.0.0.0 bind, so verification adds no value.
+        proxy_ssl_verify off;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

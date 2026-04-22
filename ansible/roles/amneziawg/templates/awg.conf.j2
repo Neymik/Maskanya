@@ -32,6 +32,16 @@ PublicKey = {{ hostvars[h].awg_public_key }}
 AllowedIPs = {{ hostvars[h].awg_address }}/32
 {% endif %}
 {% endfor %}
+
+# -- Hub: operator laptop peers (dynamic WAN IPs — no Endpoint on this side) --
+# Auth is by Curve25519 pubkey; source-IP isn't a gate because operator IPs roam.
+{% for op in (operator_awg_peers | default([])) %}
+
+[Peer]
+# operator: {{ op.name }}
+PublicKey = {{ op.public_key }}
+AllowedIPs = {{ op.address }}/32
+{% endfor %}
 {% else %}
 # -- Spoke: peer with the hub --
 {% set hub_name = groups['mgmt'] | first %}

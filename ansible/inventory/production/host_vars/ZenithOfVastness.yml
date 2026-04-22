@@ -21,11 +21,24 @@ awg_address: 10.77.0.1
 awg_public_ip: "{{ public_ipv4 }}"
 awg_public_key: "ZQWEAZq9GlYva3mYZWBoVI41qXsg22p7lnTlGFWmFzg="
 
+# Operator laptops (dynamic WAN IPs). Range 10.77.0.100+ reserved for humans.
+# Adding any entry here also opens UDP {{ awg_listen_port | default(51821) }}
+# on INPUT from 0.0.0.0/0 — AWG's Curve25519 auth is the gate, not the firewall.
+operator_awg_peers:
+  - name: neymik-mac
+    address: 10.77.0.100
+    public_key: "irAkmfVhIsqmBsQXJccwIBe6PenRRx181mynNhSDrkY="
+
 # --- xray / Reality ----------------------------------------------------------
 
 xray_inbound_port: 8444            # override group_vars/exits default — 8443 is taken by mtg (MTProto), nginx owns :443
 
-reality_sni: www.samsung.com       # must differ from MaskanyaHopMsk's entry SNI
+reality_sni: eh.vk.ru              # must differ from MaskanyaHopMsk's entry SNI
+# Swapped from www.samsung.com 2026-04-21 — JP/KR consumer brands flag as
+# low-plausibility destinations under the Dec-2025 TSPU detector; RU-CDN
+# SNIs match a plausible RU-resident fingerprint. TLS 1.3 + H2 + X25519
+# verified from both ZOV and MSK. MaskanyaHopMsk.yml::xray_exit_targets[0]
+# must mirror this value.
 reality_short_id: a7f2c9b4         # 8-hex, committed (not secret, shared with entry outbound)
 reality_public_key: "aiVYxkLAcaCrBgo1UwyRvg-nk1I5kmC8FHOMl5qqBj0"
 

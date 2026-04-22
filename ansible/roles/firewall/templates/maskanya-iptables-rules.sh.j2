@@ -53,3 +53,21 @@ done
 for ip in "${AWG_SRC_IPS[@]:-}"; do
     [ -n "${ip}" ] && add_rule_if_missing udp {{ awg_listen_port }} "$ip" "maskanya-awg"
 done
+
+{% if (operator_awg_peers | default([])) | length > 0 %}
+# Operator laptop peers have dynamic WAN IPs, so source-IP allowlisting is
+# useless for them. AmneziaWG's Curve25519 authentication is the actual gate:
+# packets from non-peers are silently dropped by the kernel module. Scope is
+# limited — UDP {{ awg_listen_port }} is Maskanya's mesh only (ZOV's unrelated
+# awg0 binds :51820).
+add_any_rule_if_missing() {
+    local proto="$1" port="$2" comment="$3"
+    if ! iptables -C INPUT -p "$proto" --dport "$port" -j ACCEPT \
+         -m comment --comment "$comment" 2>/dev/null; then
+        iptables -A INPUT -p "$proto" --dport "$port" -j ACCEPT \
+          -m comment --comment "$comment"
+        echo "added: $proto/$port from any ($comment)"
+    fi
+}
+add_any_rule_if_missing udp {{ awg_listen_port }} "maskanya-awg-operators"
+{% endif %}
