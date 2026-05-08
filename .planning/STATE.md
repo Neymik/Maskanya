@@ -11,10 +11,10 @@ See: `.planning/PROJECT.md` (updated 2026-05-08)
 
 Phase: 0 of 3 (PoC validation)
 Plan: 1 of 1 in current phase
-Status: Ready to execute
-Last activity: 2026-05-08 — Milestone v0.1 roadmap defined; Phase 0 spec + plan written
+Status: In progress — VAL-01 deploy complete, awaiting RU empirical test (Tasks 6, 10, 13)
+Last activity: 2026-05-08 — VAL-01 PoC config installed on MaskanyaHopMsk (replacing production xray-maskanya, backup preserved). URI generated. Awaiting RU client test result.
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [██░░░░░░░░] 15% (Tasks 0-4 of 15 complete in plan 00-01)
 
 ## Performance Metrics
 
@@ -55,17 +55,16 @@ Captured in `.planning/PROJECT.md` "Key Decisions" table. Notable for execution:
 
 ## Next Action
 
-Execute Phase 0, Plan 00-01:
+**Operator-side (RU client testing):** paste the URI from `experiments/a-vless/.uri-poc-a` into v2rayN/NekoRay on a Russian network. Run Task 6 from the plan:
+- `curl --socks5 127.0.0.1:10808 -m 15 https://ifconfig.me` → expect `82.146.35.191`
+- 5min sustained browsing test
+- Record verdict in `experiments/a-vless/RESULTS.md`
 
-```bash
-cd /Users/neymik/Documents/maskanya/experiments/a-vless
-./scripts/keygen.sh > .env.poc-a
-source .env.poc-a
-./scripts/render.sh
-./scripts/deploy.sh
-./scripts/gen-client-uri.sh
-# … operator-side smoke test, then RU empirical test, then RESULTS.md
-```
+**Then optional:** Task 10 (browser WebRTC viability via `experiments/b-webrtc/manual-test.html` on the RU device) and Task 13 (YC Function deploy + RU test).
+
+**Rollback at any time:** `experiments/a-vless/scripts/rollback-to-production.sh` restores the production xray-maskanya config from the timestamped backup at `/etc/xray/config.json.pre-poc.bak.20260508-163555` on MSK.
+
+**For autonomous resumption (`/gsd:autonomous` or similar):** plan resumes at Task 6 (RU empirical test); Tasks 0-5 already complete. After RESULTS.md commits land, plan resumes at Task 14 (ROADMAP/STATE finalize).
 
 Full task-by-task breakdown: `.planning/phases/00-poc-validation/00-01-PLAN.md`.
 

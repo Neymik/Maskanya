@@ -27,8 +27,12 @@ extract_field() {
 }
 
 KP=$(gen_keypair)
-PRIV=$(printf '%s\n' "$KP" | extract_field "Private key")
-PUB=$(printf '%s\n' "$KP" | extract_field "Public key")
+# Xray 25.x renamed the labels: "Private key:"/"Public key:" → "PrivateKey:"/"Password:".
+# Older xray (<25) still uses the spaced form. Try both.
+PRIV=$(printf '%s\n' "$KP" | extract_field "PrivateKey")
+[ -z "$PRIV" ] && PRIV=$(printf '%s\n' "$KP" | extract_field "Private key")
+PUB=$(printf '%s\n' "$KP" | extract_field "Password")
+[ -z "$PUB" ] && PUB=$(printf '%s\n' "$KP" | extract_field "Public key")
 SID=$(openssl rand -hex 4)
 UUID=$(uuidgen | tr 'A-Z' 'a-z')
 

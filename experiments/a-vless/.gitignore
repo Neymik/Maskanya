@@ -1,6 +1,8 @@
 # Generated artifacts — never commit
 .env.poc-a
+keys-poc-a.sh
 .uri-poc-a.txt
+.uri-poc-a
 configs/msk-rendered.json
 *.pcap
 RESULTS-private.md
