@@ -1,8 +1,19 @@
 # Maskanya — Three-Channel VPN Design
 
-**Date:** 2026-05-08
+**Date:** 2026-05-08 (revised same day after port-discipline correction)
 **Status:** Draft — replaces `2026-04-17-vless-reality-multihop-vpn-design.md` after the May 2026 regulatory shift.
 **Hosts:** unchanged — `ZenithOfVastness` (NL, dual-role mgmt+exit) and `MaskanyaHopMsk` (Moscow, entry). New work is a protocol-stack and tooling pivot on the existing two boxes; no new VPS, no provider migration.
+
+## Port discipline (binding constraint)
+
+In the May 2026 RU DPI regime, **any TCP port other than 22, 80, or 443 is treated as suspicious and may be selectively blocked or behaviour-classified more aggressively** — including widely-used "alternative HTTPS" ports (`:8443`, `:2053`, `:2096`, `:8080`, etc.). The v1 design's `:8443` exit and the original PoC's `:2053` exit both fall under this rule. Therefore:
+
+- **All RU-facing inbound ports are :443.** Period. No exceptions.
+- **All inter-host inbound ports are :443.** MSK → ZOV outbound terminates on `:443`, not `:8443`.
+- **Egress from MSK to anywhere** uses well-known destination ports (mostly `:443`). Routing rules direct user traffic, the egress port stays standard.
+- The existing production `xray-maskanya` on ZOV `:8443` is grandfathered until Phase 1 hardening migrates it onto ZOV `:443` via nginx SNI-routing (see "ZOV port multiplexing" below). Until that migration, ZOV `:8443` is a known weakness.
+
+Implication: ZOV's `:443` is not a single endpoint but a **demuxer**. nginx already terminates 13 production vhosts there; we add `nginx_stream` SNI-preread in front so different SNIs route to different backends (production vhosts vs. xray Reality vs. YC bridge). Detailed below.
 
 ## Why this spec exists
 
@@ -35,6 +46,7 @@ The user has decided not to migrate hosts. Therefore we accept that **the single
 
 | Threat | Layer | Mitigated by |
 |---|---|---|
+| Non-standard port (anything ≠ 22/80/443) flagged or behaviour-classified | L4 / DPI | Port discipline: every public listener is `:443` only; nginx SNI demuxer on ZOV; all inter-host links also on `:443` |
 | TLS fingerprint match (JA3/JA4 → Go crypto/tls) | L7 / DPI | Channel A: `fingerprint: "chrome"` (uTLS) on every Reality block |
 | Active probing of Reality `dest:` | L7 / DPI | Channel A: `dest: storage.yandex.net:443` (real Yandex CDN responds with real cert) + per-user shortIds |
 | Behavioral classifier on post-handshake traffic | L7 / DPI | Channel A: XHTTP transport (mode=auto, xPaddingBytes 100-1000, randomized path) — request/response geometry mimics HTTP/2 |
@@ -72,12 +84,14 @@ The user has decided not to migrate hosts. Therefore we accept that **the single
             │  geoip:ru → direct     │  │              │  │                   │
             └────────┬───────────────┘  └──────┬───────┘  └─────────┬─────────┘
                      │ Reality outbound        │ HTTPS to ZOV       │ DataChannel
-                     │ TCP/8443 (public)       │ (NL public IP)     │ (peer ↔ peer)
+                     │ TCP/443 (public)        │ TCP/443            │ (peer ↔ peer)
                      ▼                         ▼                    ▼
                                 ┌──────────────────────────────────┐
                                 │   ZenithOfVastness (NL exit)     │
-                                │   Reality :8443  (Channel A in)  │
-                                │   nginx /yc-bridge (Channel C)   │
+                                │   nginx :443 — SNI demuxer       │
+                                │   ├ SNI=production → 13 vhosts   │
+                                │   ├ SNI=cloudflare → xray Reality│
+                                │   └ SNI=bridge.*   → YC backend  │
                                 │   olcRTC bridge daemon (Ch. B)   │
                                 │   103.137.249.134                │
                                 └────────┬─────────────────────────┘
@@ -106,8 +120,12 @@ Day-to-day high-throughput channel. Used >95% of the time when no whitelist-mode
 ```
 Client → MSK :443 (Reality+XHTTP+Vision) → MSK split-router
                                               ├── geoip:ru → freedom out (direct, RU traffic)
-                                              └── default → Reality outbound to ZOV :8443 → ZOV freedom out
+                                              └── default → Reality outbound to ZOV :443
+                                                            (SNI=cloudflare; nginx demuxes to xray)
+                                                            → ZOV freedom out
 ```
+
+Both inbound on MSK and outbound to ZOV use `:443` only. The original v1 used `:8443` on ZOV; that's grandfathered for now and migrated in Phase 1 (see "ZOV port multiplexing").
 
 ### Inbound spec — `MaskanyaHopMsk` :443
 
@@ -184,9 +202,40 @@ Reality outbound from MSK to ZOV: same XHTTP+Reality stack but no Vision (Vision
 }
 ```
 
-### Inbound spec — `ZenithOfVastness` :8443
+### Inbound spec — `ZenithOfVastness` :443 via nginx SNI-routing
 
-Mirror of MSK :443 but bound to 8443 (ZOV's :443 is taken by 13 production vhosts and remains untouched per the preservation contract). SNI is `www.cloudflare.com`; `dest` is `www.cloudflare.com:443`.
+ZOV's `:443` is shared with 13 production vhosts. Reality is a TCP protocol that begins with a TLS ClientHello, so nginx's `ngx_stream_ssl_preread_module` can inspect SNI **before** TLS termination and route to different backends:
+
+```nginx
+# /etc/nginx/conf.d/maskanya-stream.conf — added inside the existing nginx
+stream {
+    map $ssl_preread_server_name $maskanya_backend {
+        www.cloudflare.com         127.0.0.1:8443;   # Channel A xray Reality
+        bridge.maskanya.animeenigma.ru  127.0.0.1:8444;   # Channel C YC bridge inbound
+        default                    127.0.0.1:8000;   # fall through to existing nginx http{}
+    }
+
+    server {
+        listen 443;
+        listen [::]:443;
+        proxy_pass $maskanya_backend;
+        ssl_preread on;
+        proxy_protocol off;
+    }
+}
+
+# Existing http{} block is moved to listen 127.0.0.1:8000 instead of :443.
+# It still terminates TLS for the 13 production vhosts; nginx is just the
+# one demuxing in front.
+```
+
+Notes:
+- The xray Reality inbound binds to **`127.0.0.1:8443`** (loopback only) — outside reach. Public traffic only arrives via the stream demuxer. The existing production `xray-maskanya.service` keeps its current `:8443` config but rebinds to `127.0.0.1:8443` during Phase 1 cutover.
+- SNI `www.cloudflare.com` is the trigger for routing into xray. Clients (and probes) that send any other SNI fall through to the existing 13 vhosts and behave normally.
+- The default fallback to `127.0.0.1:8000` requires moving the existing `listen 443` directives in `/etc/nginx/sites-enabled/*` to `listen 127.0.0.1:8000`. nginx supports stream + http coexistence cleanly; this is the minimal disruptive cutover.
+- `ngx_stream_ssl_preread_module` ships in the standard `nginx-extras` and `nginx-full` Debian/Ubuntu packages. ZOV's existing nginx is `nginx-full` (verified via memory `project_zov_bootstrap_state.md`); module presence checked in Phase 1 step 0.
+
+The xray-side config is otherwise identical to MSK's inbound: VLESS over XHTTP+Reality, `dest: www.cloudflare.com:443`, `serverNames: ["www.cloudflare.com"]`, `fingerprint: chrome`, `mode: stream-one` (matches MSK outbound's mode for chain compatibility).
 
 ### Split routing on MSK (unchanged from v1, tightened)
 
@@ -232,16 +281,19 @@ The endpoint client connects to is `https://functions.yandexcloud.net/d4eXXXXXXX
 - Function opens a TCP connection to ZOV's bridge endpoint (`bridge.maskanya.animeenigma.ru:443`) and forwards. ZOV's nginx terminates TLS, validates a function-only cert pin, and proxies to the local `xray_yc_bridge` inbound.
 - On every invocation: increments user's GB counter via the Marzban API; refuses if quota exhausted.
 
-**Upstream on ZOV:** new xray inbound `xray_yc_bridge`, protocol VLESS over WebSocket, listening on `127.0.0.1:8444` (mesh-internal), fronted by nginx vhost `bridge.maskanya.animeenigma.ru` on `:443` (added to ZOV's existing nginx). nginx terminates TLS with an LE cert (HTTP-01 via existing certbot pattern). Only Yandex outbound IPs allowed via `allow ...; deny all;`.
+**Upstream on ZOV:** new xray inbound `xray_yc_bridge`, protocol VLESS over WebSocket, listening on `127.0.0.1:8444` (loopback only). The nginx SNI demuxer routes SNI=`bridge.maskanya.animeenigma.ru` from the public `:443` to a backend nginx http{} server that terminates TLS and proxies to xray. The backend nginx http server listens on `127.0.0.1:8000` (same backend used by all production vhosts after Phase 1) and matches by `server_name`:
 
 ```nginx
+# Inside nginx http{} block, listening on 127.0.0.1:8000 (NOT public :443).
 server {
-    listen 443 ssl http2;
+    listen 127.0.0.1:8000 ssl http2;
     server_name bridge.maskanya.animeenigma.ru;
     ssl_certificate /etc/letsencrypt/live/bridge.maskanya.animeenigma.ru/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/bridge.maskanya.animeenigma.ru/privkey.pem;
 
-    # YC Functions egress IP ranges (kept current via ansible cron task)
+    # YC Functions egress IP ranges, kept current by yc_egress_refresh role.
+    # Note: when stream demuxer is in front, $remote_addr is the demuxer (127.0.0.1).
+    # We use the proxy_protocol header instead — see set_real_ip_from in stream config.
     include /etc/nginx/maskanya/yc_egress_allow.conf;
     deny all;
 
@@ -254,6 +306,8 @@ server {
     }
 }
 ```
+
+The stream demuxer must be configured with `proxy_protocol on;` to forward real client IPs through to the http{} server, otherwise the YC-egress IP allowlist sees only `127.0.0.1` and lets everything through.
 
 ### Deployment
 - Function source code: `infra/yc-functions/tunnel/` (TypeScript, ~200 LOC, bundled with esbuild).
@@ -366,9 +420,10 @@ The companion sorts by RTT, attempts in order, falls back on failure.
 | `amneziawg` | unchanged | mesh stays as control plane only |
 | `node_exporter` | unchanged | — |
 | `xray_common` | minor | bump xray-core minimum to v25.4.x (XHTTP+stream-one available); reality_keygen unchanged |
-| `xray_entry` | rewrite | new template: XHTTP+Reality+Vision inbound on :443; outbound also XHTTP+Reality; per-user shortIds; `dest: storage.yandex.net:443`; chrome fp |
-| `xray_exit` | rewrite | mirror of entry-side, SNI=cloudflare.com; adds parallel `xray_yc_bridge` inbound on `127.0.0.1:8444` |
-| `nginx_yc_bridge` | NEW | adds `bridge.maskanya.animeenigma.ru` vhost to ZOV's existing nginx; LE cert via existing certbot; YC egress allowlist |
+| `xray_entry` | rewrite | new template: XHTTP+Reality+Vision inbound on :443; outbound also XHTTP+Reality on :443 (was :8443); per-user shortIds; `dest: storage.yandex.net:443`; chrome fp |
+| `xray_exit` | rewrite | mirror of entry-side, SNI=cloudflare.com; rebinds to `127.0.0.1:8443` (was public :8443); adds parallel `xray_yc_bridge` inbound on `127.0.0.1:8444` |
+| `nginx_sni_demux` | NEW | adds `nginx_stream` block on ZOV — public `:443` becomes the SNI demuxer; existing 13 vhosts move from public `:443` to internal `127.0.0.1:8000`; verifies `ngx_stream_ssl_preread_module` is loaded |
+| `nginx_yc_bridge` | NEW | adds `bridge.maskanya.animeenigma.ru` http server on `127.0.0.1:8000` (behind the SNI demuxer); LE cert via existing certbot; YC egress allowlist via proxy-protocol-passed real IP |
 | `marzban_panel` | extension | new subscription template + JWT endpoint |
 | `olcrtc_bridge` | NEW (Phase 4) | systemd unit + Go binary (`/usr/local/bin/maskanya-olcrtc`); deployed but disabled by default |
 | `yc_egress_refresh` | NEW | weekly cron job that fetches YC's published egress CIDRs and rewrites `/etc/nginx/maskanya/yc_egress_allow.conf` |
@@ -420,8 +475,11 @@ Per-user channel-C cost projection at 50 users × 5 GB/mo on YC ≈ ₽250/mo to
 
 ## Roadmap / phasing
 
-**Phase 1 — VLESS-2026 hardening (Week 1, ~3–5 days):**
-Land `xray_entry` and `xray_exit` rewrites with chrome fingerprint + XHTTP+stream-one+Vision + Yandex CDN SNI + per-user shortIds. Rotate Reality keys. Update Marzban subscription template to emit the new Channel A URI. No new components.
+**Phase 0 — PoC (1–2 days, validates the protocol stack before architectural commitments):**
+Single-hop `client → MSK :443 → MSK direct egress`. Reality+XHTTP+Vision+chrome+yandex-SNI on MSK. No ZOV-side work. Standalone `xray-poc.service` on MSK (production xray-maskanya was wiped per memory 2026-04-18, so MSK is empty). If RU client can `curl ifconfig.me` through the tunnel and get back MSK's IP (`82.146.35.191`), the protocol stack survives current DPI and we proceed to Phase 1. Implemented in `experiments/a-vless/` — bash + scp + systemd, no Ansible.
+
+**Phase 1 — VLESS-2026 hardening + nginx SNI demuxer (Week 1, ~5–7 days):**
+Land `nginx_sni_demux` role first — moves ZOV's existing 13 vhosts from public `:443` to internal `127.0.0.1:8000` behind a stream demuxer. Verify all 13 vhosts still respond identically. Then land `xray_entry` and `xray_exit` rewrites with chrome fingerprint + XHTTP+stream-one+Vision + Yandex CDN SNI + per-user shortIds. Rotate Reality keys. Update Marzban subscription template to emit the new Channel A URI. ZOV xray rebinds to `127.0.0.1:8443`; MSK→ZOV outbound now targets ZOV `:443` (the demuxer).
 
 **Phase 2 — YC bridge upstream on ZOV (Week 2, ~3 days):**
 Add `xray_yc_bridge` inbound on ZOV. Add `nginx_yc_bridge` role with `bridge.maskanya.animeenigma.ru` vhost + LE cert + YC egress allowlist. Verify upstream is reachable from a manual `curl` test from a YC sandbox.
@@ -456,6 +514,8 @@ Old v1 client subscription URIs (samsung.com SNI, no XHTTP) become invalid after
 4. **JWT lifetime.** 1 hour means companion must refresh hourly. If companion is offline (Channel A not working AND companion can't reach Marzban for refresh), B/C are dead. Solution: fetch a 24h-expiry JWT during normal operation, hand to B/C; B/C still revalidate against Marzban on each session start. Revisit during Phase 3.
 5. **MSK plaintext.** Same residual risk as v1: MSK holds plaintext briefly while routing. New spec doesn't fix it. Consider whether we should add a user-facing explainer in the panel.
 6. **xray-core version.** XHTTP-mode-stream-one + Vision requires xray-core v25.x (newer than the v1.8.24 currently pinned). Need to bump and re-verify; new version may require Marzban update too.
+7. **nginx_stream_ssl_preread on ZOV.** The Phase 1 SNI demuxer requires `ngx_stream_ssl_preread_module`. Standard `nginx-full` and `nginx-extras` Debian/Ubuntu packages include it; OpenResty does too. Verification step: `nginx -V 2>&1 | grep -- '--with-stream'`. If missing, the role apt-installs `nginx-full` (which is already what `nginx` defaults to on noble — low risk). Has to be confirmed live during Phase 1 step 0 before any cutover.
+8. **Cutover atomicity for the 13 production vhosts.** Moving them from `listen 443` to `listen 127.0.0.1:8000` plus standing up the stream demuxer is a single nginx reload. If anything goes wrong, all 13 vhosts go down at once. Mitigation: (a) snapshot the FirstVDS / Hetzner-equivalent disk before the change; (b) test the demuxer on a non-443 port first (still inside ZOV — no DPI involved), confirm SNI routing works, then atomically swap to `:443` in one config reload.
 
 ## Sources
 

@@ -33,48 +33,13 @@
     }
   ],
   "outbounds": [
-    { "tag": "direct", "protocol": "freedom" },
-    { "tag": "block", "protocol": "blackhole" },
-    {
-      "tag": "to-zov",
-      "protocol": "vless",
-      "settings": {
-        "vnext": [{
-          "address": "103.137.249.134",
-          "port": 2053,
-          "users": [{
-            "id": "${CHAIN_UUID}",
-            "encryption": "none",
-            "flow": ""
-          }]
-        }]
-      },
-      "streamSettings": {
-        "network": "xhttp",
-        "xhttpSettings": {
-          "path": "/poc",
-          "mode": "auto",
-          "xPaddingBytes": "100-1000"
-        },
-        "security": "reality",
-        "realitySettings": {
-          "show": false,
-          "serverName": "www.cloudflare.com",
-          "publicKey": "${ZOV_REALITY_PUBLIC_KEY}",
-          "shortId": "${ZOV_SHORT_ID}",
-          "fingerprint": "chrome",
-          "spiderX": ""
-        }
-      }
-    }
+    { "tag": "direct", "protocol": "freedom", "settings": { "domainStrategy": "UseIP" } },
+    { "tag": "block",  "protocol": "blackhole" }
   ],
   "routing": {
-    "domainStrategy": "IPIfNonMatch",
+    "domainStrategy": "AsIs",
     "rules": [
-      { "type": "field", "ip": ["geoip:private"], "outboundTag": "block" },
-      { "type": "field", "ip": ["geoip:ru"], "outboundTag": "direct" },
-      { "type": "field", "domain": ["geosite:category-ru"], "outboundTag": "direct" },
-      { "type": "field", "outboundTag": "to-zov", "network": "tcp,udp" }
+      { "type": "field", "ip": ["geoip:private"], "outboundTag": "block" }
     ]
   }
 }

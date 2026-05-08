@@ -6,9 +6,11 @@ Minimal proof-of-concept for the three channels in the [2026-05-08 design spec](
 
 | Channel | What this tests | Effort |
 |---|---|---|
-| A — VLESS+Reality+XHTTP | Does xray-core 25.x with stream-one + chrome fp + Yandex CDN SNI survive RU DPI when run on FirstVDS? | ~2h, real deploy |
+| A — single-hop VLESS+Reality+XHTTP | Does xray-core 25.x with stream-one + chrome fp + Yandex CDN SNI on `:443` survive RU DPI when run on FirstVDS? | ~1h, MSK only |
 | C — YC Function | Can a function on `functions.yandexcloud.net` be reached from RU AND reach foreign IPs? | ~1h, requires YC account |
 | B — WebRTC | Does WebRTC DataChannel work in a Russian browser at all? Loopback test only. | ~5min, browser only |
+
+**Port discipline (cross-cutting).** Under the May 2026 RU regime, any TCP port that isn't `:22 / :80 / :443` is treated as suspicious — including widely-used HTTPS alternatives like `:8443`, `:2053`, `:2096`. Earlier drafts of these experiments used non-standard ports for "isolation"; the current versions stick to `:443` everywhere. ZOV-side multiplexing of multiple `:443` services (xray Reality + 13 production vhosts + YC bridge) requires the `nginx_stream` SNI demuxer described in the design spec — that's Phase 1 work, not PoC scope. Therefore Channel A's PoC is **single-hop on MSK only**: client → MSK :443 → MSK direct egress. ZOV is untouched.
 
 **What's deliberately out of scope:**
 - Marzban integration → hardcoded UUIDs, manual config
@@ -30,7 +32,9 @@ Minimal proof-of-concept for the three channels in the [2026-05-08 design spec](
 
 ## What "it works" means
 
-For each channel, success = a Russian client can `curl https://ifconfig.me` through the channel and get back ZOV's NL IP (`103.137.249.134`) instead of the client's RU IP. That's the bar.
+- **Channel A (single-hop):** `curl https://ifconfig.me` through the tunnel returns MSK's IP (`82.146.35.191`), not the client's home IP. We're not testing exit geography in this PoC — we're testing whether RU DPI lets our handshake + payload through. If yes, the protocol stack is viable; ZOV-side multihop work moves to Phase 1.
+- **Channel C:** the function reachable from RU AND able to fetch foreign URLs (e.g. `ifconfig.me` returns a YC-resident IP, indicating egress from YC's network).
+- **Channel B:** DataChannel reaches `open` state and bytes flow between two browser tabs.
 
 Failure modes to log when reporting:
 - TCP RST during handshake → DPI is killing it at L7
