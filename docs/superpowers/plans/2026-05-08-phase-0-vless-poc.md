@@ -1,5 +1,9 @@
 # Phase 0: VLESS PoC Implementation Plan
 
+**Status:** SUPERSEDED on 2026-05-08 by `.planning/phases/00-poc-validation/00-01-PLAN.md` (rewritten under GSD methodology with PROJECT/REQUIREMENTS/ROADMAP/STATE backing). The new plan covers all three validation requirements (VAL-01, VAL-02, VAL-03), not just Channel A. Use the GSD plan as the authoritative execution document.
+
+---
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Validate that VLESS + Reality + XHTTP-stream-one + Vision + chrome uTLS + Yandex CDN SNI on `:443` actually passes current RU DPI when listening on `MaskanyaHopMsk` (FirstVDS Moscow). Single empirical answer: yes → proceed to Phase 1; no → go to Channel C.
