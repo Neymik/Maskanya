@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Maskanya — WebRTC viability test</title>
+<style>
+body { font: 14px/1.4 system-ui, sans-serif; margin: 1.5em; max-width: 720px; }
+h1 { font-size: 1.2em; }
+textarea { width: 100%; height: 6em; font-family: monospace; font-size: 12px; }
+button { padding: .4em .8em; margin: .3em .3em .3em 0; }
+.status { padding: .5em; background: #f4f4f4; border-left: 3px solid #888; margin: .5em 0; }
+.ok { border-color: #2a7; background: #eff8f0; }
+.err { border-color: #c33; background: #fbeded; }
+#log { font-family: monospace; font-size: 12px; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+
+<h1>Maskanya — WebRTC viability test</h1>
+<p>Open this page in two tabs (or two devices on the same RU network). One creates an offer; the other answers.</p>
+
+<div class="status" id="state">state: idle</div>
+
+<h2>1. Create offer (do this in tab 1)</h2>
+<button id="btn-offer">Create offer</button>
+<textarea id="local-sdp" placeholder="local SDP appears here — copy to the other tab" readonly></textarea>
+
+<h2>2. Set remote SDP</h2>
+<p>Paste the SDP from the other tab.</p>
+<textarea id="remote-sdp" placeholder="paste here"></textarea>
+<button id="btn-set-remote">Set remote (and create answer if needed)</button>
+
+<h2>3. Send messages on the DataChannel</h2>
+<input id="msg" type="text" placeholder="type and press enter" style="width:100%;padding:.4em">
+<div class="status" id="dc-state">DataChannel: not open</div>
+
+<h2>Log</h2>
+<div id="log"></div>
+
+<script>
+const STUN = 'stun:stun.l.google.com:19302';
+// Whitelist-mode: try 'stun:stun.yandex.net:3478' instead.
+
+const log = (msg) => {
+    const el = document.getElementById('log');
+    el.textContent += '[' + new Date().toISOString().slice(11, 19) + '] ' + msg + '\n';
+    el.scrollTop = el.scrollHeight;
+};
+const setState = (msg, cls) => {
+    const el = document.getElementById('state');
+    el.textContent = 'state: ' + msg;
+    el.className = 'status ' + (cls || '');
+};
+const setDcState = (msg, cls) => {
+    const el = document.getElementById('dc-state');
+    el.textContent = 'DataChannel: ' + msg;
+    el.className = 'status ' + (cls || '');
+};
+
+const pc = new RTCPeerConnection({ iceServers: [{ urls: STUN }] });
+let dc = null;
+
+pc.onicecandidate = (e) => {
+    if (!e.candidate) {
+        // ICE gathering complete — local SDP now contains all candidates
+        document.getElementById('local-sdp').value = JSON.stringify(pc.localDescription);
+        setState('local SDP ready (copy to other tab)', 'ok');
+    }
+};
+pc.oniceconnectionstatechange = () => {
+    log('ICE: ' + pc.iceConnectionState);
+    if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+        setState('ICE connected', 'ok');
+    } else if (pc.iceConnectionState === 'failed') {
+        setState('ICE failed — STUN may be blocked', 'err');
+    }
+};
+pc.onconnectionstatechange = () => log('PC: ' + pc.connectionState);
+
+const wireDataChannel = (channel) => {
+    dc = channel;
+    dc.onopen = () => { setDcState('open — type below', 'ok'); log('DC open'); };
+    dc.onclose = () => { setDcState('closed', 'err'); log('DC closed'); };
+    dc.onerror = (e) => { setDcState('error: ' + e.message, 'err'); log('DC error: ' + e); };
+    dc.onmessage = (e) => log('← peer: ' + e.data);
+};
+
+pc.ondatachannel = (e) => { log('DC arrived from peer'); wireDataChannel(e.channel); };
+
+document.getElementById('btn-offer').onclick = async () => {
+    log('creating offer');
+    wireDataChannel(pc.createDataChannel('maskanya-poc'));
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    setState('gathering ICE candidates…');
+};
+
+document.getElementById('btn-set-remote').onclick = async () => {
+    const remote = JSON.parse(document.getElementById('remote-sdp').value);
+    log('setting remote SDP, type=' + remote.type);
+    await pc.setRemoteDescription(remote);
+    if (remote.type === 'offer') {
+        // We're the answerer — produce answer
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        setState('gathering ICE for answer…');
+    } else {
+        setState('remote answer set; waiting for ICE');
+    }
+};
+
+document.getElementById('msg').addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' || !dc || dc.readyState !== 'open') return;
+    const v = e.target.value;
+    if (!v) return;
+    dc.send(v);
+    log('→ self: ' + v);
+    e.target.value = '';
+});
+
+log('ready. STUN=' + STUN);
+</script>
+</body>
+</html>

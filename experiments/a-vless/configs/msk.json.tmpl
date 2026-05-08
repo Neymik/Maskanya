@@ -1,0 +1,80 @@
+{
+  "log": { "loglevel": "warning" },
+  "inbounds": [
+    {
+      "tag": "poc-reality-in",
+      "listen": "0.0.0.0",
+      "port": 443,
+      "protocol": "vless",
+      "settings": {
+        "clients": [
+          { "id": "${USER_UUID}", "flow": "xtls-rprx-vision", "email": "poc-user@maskanya" }
+        ],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "xhttp",
+        "xhttpSettings": {
+          "path": "/poc",
+          "mode": "stream-one",
+          "xPaddingBytes": "100-1000"
+        },
+        "security": "reality",
+        "realitySettings": {
+          "show": false,
+          "dest": "storage.yandex.net:443",
+          "xver": 0,
+          "serverNames": ["storage.yandex.net"],
+          "privateKey": "${MSK_REALITY_PRIVATE_KEY}",
+          "shortIds": ["${MSK_SHORT_ID}"],
+          "fingerprint": "chrome"
+        }
+      }
+    }
+  ],
+  "outbounds": [
+    { "tag": "direct", "protocol": "freedom" },
+    { "tag": "block", "protocol": "blackhole" },
+    {
+      "tag": "to-zov",
+      "protocol": "vless",
+      "settings": {
+        "vnext": [{
+          "address": "103.137.249.134",
+          "port": 2053,
+          "users": [{
+            "id": "${CHAIN_UUID}",
+            "encryption": "none",
+            "flow": ""
+          }]
+        }]
+      },
+      "streamSettings": {
+        "network": "xhttp",
+        "xhttpSettings": {
+          "path": "/poc",
+          "mode": "auto",
+          "xPaddingBytes": "100-1000"
+        },
+        "security": "reality",
+        "realitySettings": {
+          "show": false,
+          "serverName": "www.cloudflare.com",
+          "publicKey": "${ZOV_REALITY_PUBLIC_KEY}",
+          "shortId": "${ZOV_SHORT_ID}",
+          "fingerprint": "chrome",
+          "spiderX": ""
+        }
+      }
+    }
+  ],
+  "routing": {
+    "domainStrategy": "IPIfNonMatch",
+    "rules": [
+      { "type": "field", "ip": ["geoip:private"], "outboundTag": "block" },
+      { "type": "field", "ip": ["geoip:ru"], "outboundTag": "direct" },
+      { "type": "field", "domain": ["geosite:category-ru"], "outboundTag": "direct" },
+      { "type": "field", "outboundTag": "to-zov", "network": "tcp,udp" }
+    ]
+  }
+}
