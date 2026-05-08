@@ -1,7 +1,11 @@
 # Maskanya — VLESS Reality Multihop VPN Service
 
 **Date:** 2026-04-17
-**Status:** Approved (revised 2026-04-17 after live-host exploration — see "Live-Host Constraints" below)
+**Status:** SUPERSEDED on 2026-05-08 by `2026-05-08-three-channel-vpn-design.md`. The single-channel VLESS+Reality+Vision+TCP design below was overtaken by the May 2026 RU regulatory regime (whitelist-mode L3 filtering, behavioral DPI, May 1 cross-border traffic charges). Hosts (`ZenithOfVastness`, `MaskanyaHopMsk`) and the AmneziaWG control mesh are unchanged; the protocol stack and per-host responsibilities are rewritten. Read the new spec first.
+
+---
+
+**Original Status (2026-04-17):** Approved (revised 2026-04-17 after live-host exploration — see "Live-Host Constraints" below)
 
 ## Overview
 
