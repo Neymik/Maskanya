@@ -11,10 +11,14 @@ See: `.planning/PROJECT.md` (updated 2026-05-08)
 
 Phase: 0 of 3 (PoC validation)
 Plan: 1 of 1 in current phase
-Status: In progress — VAL-01 deploy complete, awaiting RU empirical test (Tasks 6, 10, 13)
-Last activity: 2026-05-08 — VAL-01 PoC config installed on MaskanyaHopMsk (replacing production xray-maskanya, backup preserved). URI generated. Awaiting RU client test result.
+Status: In progress — VAL-01 deploy + foreign-side smoke PASSED, awaiting RU empirical test (Tasks 6, 10, 13)
+Last activity: 2026-05-11 — VAL-01 config tweaks landed:
+  • dropped `xtls-rprx-vision` flow (xray 26.x rejects Vision+XHTTP combo with "XTLS only supports TLS and REALITY directly")
+  • switched XHTTP `mode: stream-one` → `auto`
+  • switched dest+SNI from `storage.yandex.net` (NXDOMAIN!) → `yastatic.net` (resolvable, whitelist-resident, Habr-recommended alternate)
+  Operator-side smoke test PASSED: `curl --socks5 127.0.0.1:2080 ifconfig.me` through xray client → returns `82.146.35.191`.
 
-Progress: [██░░░░░░░░] 15% (Tasks 0-4 of 15 complete in plan 00-01)
+Progress: [███░░░░░░░] 25% (Tasks 0-5 of 15 complete in plan 00-01; smoke test done)
 
 ## Performance Metrics
 
@@ -55,8 +59,8 @@ Captured in `.planning/PROJECT.md` "Key Decisions" table. Notable for execution:
 
 ## Next Action
 
-**Operator-side (RU client testing):** paste the URI from `experiments/a-vless/.uri-poc-a` into v2rayN/NekoRay on a Russian network. Run Task 6 from the plan:
-- `curl --socks5 127.0.0.1:10808 -m 15 https://ifconfig.me` → expect `82.146.35.191`
+**Operator-side (RU client testing):** paste the v2 URI (regenerate via `source experiments/a-vless/keys-poc-a.sh && experiments/a-vless/scripts/gen-client-uri.sh`) into a xray-based client (Hiddify-Next/v2rayN/Karing — sing-box-only clients like NekoRay won't work, xhttp is xray-only). Run Task 6 from the plan:
+- `curl --socks5 127.0.0.1:<client-port> -m 15 https://ifconfig.me` → expect `82.146.35.191`
 - 5min sustained browsing test
 - Record verdict in `experiments/a-vless/RESULTS.md`
 

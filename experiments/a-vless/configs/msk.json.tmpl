@@ -8,7 +8,7 @@
       "protocol": "vless",
       "settings": {
         "clients": [
-          { "id": "${USER_UUID}", "flow": "xtls-rprx-vision", "email": "poc-user@maskanya" }
+          { "id": "${USER_UUID}", "flow": "", "email": "poc-user@maskanya" }
         ],
         "decryption": "none"
       },
@@ -16,15 +16,15 @@
         "network": "xhttp",
         "xhttpSettings": {
           "path": "/poc",
-          "mode": "stream-one",
+          "mode": "auto",
           "xPaddingBytes": "100-1000"
         },
         "security": "reality",
         "realitySettings": {
           "show": false,
-          "dest": "storage.yandex.net:443",
+          "dest": "yastatic.net:443",
           "xver": 0,
-          "serverNames": ["storage.yandex.net"],
+          "serverNames": ["yastatic.net"],
           "privateKey": "${MSK_REALITY_PRIVATE_KEY}",
           "shortIds": ["${MSK_SHORT_ID}"],
           "fingerprint": "chrome"

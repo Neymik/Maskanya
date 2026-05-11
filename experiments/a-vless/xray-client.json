@@ -1,0 +1,50 @@
+{
+  "log": { "loglevel": "info" },
+  "inbounds": [
+    {
+      "tag": "socks-in",
+      "listen": "127.0.0.1",
+      "port": 2080,
+      "protocol": "socks",
+      "settings": { "udp": true, "auth": "noauth" },
+      "sniffing": { "enabled": true, "destOverride": ["http", "tls"] }
+    }
+  ],
+  "outbounds": [
+    {
+      "tag": "proxy",
+      "protocol": "vless",
+      "settings": {
+        "vnext": [{
+          "address": "82.146.35.191",
+          "port": 443,
+          "users": [{
+            "id": "bca9433c-4678-4965-87f7-e92bf977cb75",
+            "encryption": "none",
+            "flow": ""
+          }]
+        }]
+      },
+      "streamSettings": {
+        "network": "xhttp",
+        "xhttpSettings": {
+          "path": "/poc",
+          "mode": "auto"
+        },
+        "security": "reality",
+        "realitySettings": {
+          "show": false,
+          "fingerprint": "chrome",
+          "serverName": "yastatic.net",
+          "publicKey": "uR0QbGQez-Zw2xMFzWJaRSmSrd9AxvRi-bQdjp4GJhs",
+          "shortId": "971aa8b7"
+        }
+      }
+    },
+    { "tag": "direct", "protocol": "freedom" }
+  ],
+  "routing": {
+    "domainStrategy": "AsIs",
+    "rules": [{ "type": "field", "outboundTag": "proxy", "network": "tcp,udp" }]
+  }
+}

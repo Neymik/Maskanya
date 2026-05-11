@@ -14,5 +14,5 @@ done
 PATH_ENCODED="%2Fpoc"
 
 cat <<EOF
-vless://${USER_UUID}@82.146.35.191:443?type=xhttp&mode=stream-one&path=${PATH_ENCODED}&security=reality&pbk=${MSK_REALITY_PUBLIC_KEY}&sid=${MSK_SHORT_ID}&sni=storage.yandex.net&fp=chrome&flow=xtls-rprx-vision#Maskanya-PoC-A
+vless://${USER_UUID}@82.146.35.191:443?type=xhttp&mode=auto&path=${PATH_ENCODED}&security=reality&pbk=${MSK_REALITY_PUBLIC_KEY}&sid=${MSK_SHORT_ID}&sni=yastatic.net&fp=chrome#Maskanya-PoC-A
 EOF
