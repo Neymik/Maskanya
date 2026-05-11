@@ -11,16 +11,17 @@ See: `.planning/PROJECT.md` (updated 2026-05-08)
 
 Phase: 0 of 3 (PoC validation)
 Plan: 1 of 1 in current phase
-Status: In progress — VAL-01 multihop+split routing working, awaiting RU empirical test
-Last activity: 2026-05-11 — VAL-01 chain end-to-end PASSED on operator side:
-  • Single-hop fixes: dropped Vision (xray 26.x rejects Vision+XHTTP), mode→auto, SNI→`yastatic.net` (storage.yandex.net was NXDOMAIN)
-  • Multihop wired up: MSK outbound `to-zov` → ZOV existing xray-maskanya :8444 (TCP+Reality+SNI=eh.vk.ru, chrome fp on outbound)
-  • Split routing live: `geoip:ru` + `geosite:category-ru` → MSK direct egress; default → ZOV (NL)
-  Operator-side test confirmed:
-    - `curl --socks5 ... ifconfig.me`         → 103.137.249.134 (ZOV NL, foreign exit)
-    - `curl --socks5 ... yandex.ru/internet`  →  82.146.35.191 (MSK direct, split routing OK)
+Status: In progress — VAL-01 multihop + VAL-03 fetch-relay both PASSED operator-side; awaiting RU tests
+Last activity: 2026-05-11 — VAL-03 (Channel C, YC Function) deployed and operator-tested:
+  • Function `image-thumbnailer-v2` (id `d4engb6fl2nijjdfh98g`) live on nodejs22 in folder b1gamurq8prfsf4dso64
+  • Public access toggled via console (CLI allow-unauthenticated-invoke needs iam.editor which our SA lacks)
+  • Empirical: YC API gateway intercepts `Authorization: Bearer ...` and 403s before handler runs.
+    Switched to custom `X-Maskanya-Token` header — works correctly.
+  • Operator test: function fetched ifconfig.me, returned full HTML, YC egress IP `185.206.167.220` visible.
+    Auth gate verified (bad/missing token → 401 from handler).
+  Plus VAL-01 status (from prior) — multihop chain still live on MSK→ZOV, awaiting RU empirical test.
 
-Progress: [████░░░░░░] 35% (Tasks 0-5 + multihop done; awaiting RU client test)
+Progress: [██████░░░░] 55% (VAL-01 + VAL-03 deployed and operator-tested; both await RU empirical confirmation)
 
 ## Performance Metrics
 

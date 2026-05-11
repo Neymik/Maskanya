@@ -4,5 +4,5 @@
   "private": true,
   "description": "Channel C fetch-relay PoC for Maskanya — Yandex Cloud Functions",
   "main": "index.js",
-  "engines": { "node": ">=20" }
+  "engines": { "node": ">=22" }
 }

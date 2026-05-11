@@ -10,9 +10,12 @@ const BEARER_TOKEN = process.env.BEARER_TOKEN;
 const MAX_BODY_BYTES = 5 * 1024 * 1024;  // 5 MB — YC has a 10 MB response cap
 
 exports.handler = async function (event) {
-    // Auth gate
-    const authz = (event.headers && (event.headers.Authorization || event.headers.authorization)) || '';
-    if (!BEARER_TOKEN || authz !== `Bearer ${BEARER_TOKEN}`) {
+    // Auth gate — using a custom header because `Authorization: Bearer …`
+    // is intercepted by YC's API gateway, which tries to validate as IAM
+    // token and 403s before our handler ever runs.
+    const headers = event.headers || {};
+    const token = headers['X-Maskanya-Token'] || headers['x-maskanya-token'] || '';
+    if (!BEARER_TOKEN || token !== BEARER_TOKEN) {
         return { statusCode: 401, body: 'unauthorized' };
     }
 

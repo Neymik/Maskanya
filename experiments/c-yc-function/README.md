@@ -47,16 +47,18 @@ export FUNC_URL='https://functions.yandexcloud.net/d4e3xxx'
 export TOKEN='whatever-bearer-token-you-set'
 
 curl -X POST "$FUNC_URL" \
-     -H "Authorization: Bearer $TOKEN" \
+     -H "X-Maskanya-Token: $TOKEN" \
      -H "Content-Type: application/json" \
      -d '{"url":"https://ifconfig.me"}'
 ```
 
-Expect: a YC-resident IP (the function's egress, probably `178.154.*.*` or similar) — that's good. It means YC functions can fetch external HTTPS.
+(Note: header is `X-Maskanya-Token`, NOT `Authorization`. YC API gateway intercepts `Authorization: Bearer ...` as IAM token validation and rejects with 403 before our handler runs. Empirically discovered during PoC; documented here so the next person doesn't re-hit it.)
+
+Expect: a YC-resident IP (the function's egress, e.g. `185.206.*`) — that's good. It means YC functions can fetch external HTTPS.
 
 ### 4. Test from a Russian network
 
-Same `curl` from a RU IP. Expect: same response. If it fails:
+Same `curl` from a RU IP (with `X-Maskanya-Token`, not `Authorization`). Expect: same response. If it fails:
 - TLS handshake failure → some RU mobile carriers do TLS interception that breaks YC's cert chain. Test on multiple ISPs.
 - Connection timeout → unlikely (YC is whitelist-resident) but possible if your specific carrier has a buggy whitelist deployment.
 
@@ -64,7 +66,7 @@ Same `curl` from a RU IP. Expect: same response. If it fails:
 
 ```bash
 curl -X POST "$FUNC_URL" \
-     -H "Authorization: Bearer $TOKEN" \
+     -H "X-Maskanya-Token: $TOKEN" \
      -H "Content-Type: application/json" \
      -d '{"url":"http://103.137.249.134/"}'
 ```

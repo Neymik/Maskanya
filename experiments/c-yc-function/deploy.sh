@@ -35,7 +35,7 @@ echo "→ creating new version"
 yc serverless function version create \
     --function-name "$FUNCTION_NAME" \
     --folder-id "$FOLDER_ID" \
-    --runtime nodejs20 \
+    --runtime nodejs22 \
     --entrypoint index.handler \
     --memory 256m \
     --execution-timeout 60s \
@@ -60,6 +60,10 @@ echo "  URL: $URL"
 echo
 echo "  Test:"
 echo "    curl -X POST '$URL' \\"
-echo "      -H 'Authorization: Bearer $BEARER_TOKEN' \\"
+echo "      -H 'X-Maskanya-Token: $BEARER_TOKEN' \\"
 echo "      -H 'Content-Type: application/json' \\"
 echo "      -d '{\"url\":\"https://ifconfig.me\"}'"
+echo
+echo "  NOTE: auth header is X-Maskanya-Token, NOT Authorization."
+echo "  YC API gateway intercepts 'Authorization: Bearer ...' as IAM token"
+echo "  and 403s before our handler runs."
