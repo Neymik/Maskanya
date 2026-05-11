@@ -11,14 +11,16 @@ See: `.planning/PROJECT.md` (updated 2026-05-08)
 
 Phase: 0 of 3 (PoC validation)
 Plan: 1 of 1 in current phase
-Status: In progress — VAL-01 deploy + foreign-side smoke PASSED, awaiting RU empirical test (Tasks 6, 10, 13)
-Last activity: 2026-05-11 — VAL-01 config tweaks landed:
-  • dropped `xtls-rprx-vision` flow (xray 26.x rejects Vision+XHTTP combo with "XTLS only supports TLS and REALITY directly")
-  • switched XHTTP `mode: stream-one` → `auto`
-  • switched dest+SNI from `storage.yandex.net` (NXDOMAIN!) → `yastatic.net` (resolvable, whitelist-resident, Habr-recommended alternate)
-  Operator-side smoke test PASSED: `curl --socks5 127.0.0.1:2080 ifconfig.me` through xray client → returns `82.146.35.191`.
+Status: In progress — VAL-01 multihop+split routing working, awaiting RU empirical test
+Last activity: 2026-05-11 — VAL-01 chain end-to-end PASSED on operator side:
+  • Single-hop fixes: dropped Vision (xray 26.x rejects Vision+XHTTP), mode→auto, SNI→`yastatic.net` (storage.yandex.net was NXDOMAIN)
+  • Multihop wired up: MSK outbound `to-zov` → ZOV existing xray-maskanya :8444 (TCP+Reality+SNI=eh.vk.ru, chrome fp on outbound)
+  • Split routing live: `geoip:ru` + `geosite:category-ru` → MSK direct egress; default → ZOV (NL)
+  Operator-side test confirmed:
+    - `curl --socks5 ... ifconfig.me`         → 103.137.249.134 (ZOV NL, foreign exit)
+    - `curl --socks5 ... yandex.ru/internet`  →  82.146.35.191 (MSK direct, split routing OK)
 
-Progress: [███░░░░░░░] 25% (Tasks 0-5 of 15 complete in plan 00-01; smoke test done)
+Progress: [████░░░░░░] 35% (Tasks 0-5 + multihop done; awaiting RU client test)
 
 ## Performance Metrics
 
