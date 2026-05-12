@@ -16,11 +16,11 @@ ExecStart=/usr/local/bin/maskanya-olcrtc \
   -key ${OLCRTC_KEY} \
   -link direct \
   -dns 1.1.1.1:53 \
-  -data /var/lib/maskanya-olcrtc/data
+  -data /var/lib/maskanya-olcrtc
 WorkingDirectory=/var/lib/maskanya-olcrtc
-# StateDirectory creates BOTH the parent and the data/ subdir under it,
-# owned by the DynamicUser. The binary expects -data /var/lib/maskanya-olcrtc/data.
-StateDirectory=maskanya-olcrtc maskanya-olcrtc/data
+# systemd 249 (Ubuntu 22.04) doesn't accept nested StateDirectory paths.
+# Point -data at the StateDirectory root; olcrtc creates its own subdirs there.
+StateDirectory=maskanya-olcrtc
 Restart=on-failure
 RestartSec=10s
 
