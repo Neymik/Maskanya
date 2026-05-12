@@ -279,6 +279,57 @@ Always recoverable: kill the olcrtc process and restart. No state to clean up on
 
 ---
 
+## Always-on vs on-demand
+
+You can run the ZOV server permanently. To survive reboots:
+
+```bash
+ssh ZenithOfVastness 'sudo systemctl enable maskanya-olcrtc-bridge'
+ssh ZenithOfVastness 'sudo systemctl start maskanya-olcrtc-bridge'
+```
+
+When idle (no client connected), the server cycles every ~60 s (`RestartSec=60s`): it tries to join the wbstream room, times out after 16 s waiting for a peer, exits, waits, restarts. That's wasteful but bounded — ~1300 wbstream API touches per day, ~15 MB peak memory, no log noise apart from a join/timeout pair every minute. Acceptable for always-on.
+
+To stop using it for the day but leave the server idle in case you come back:
+- Just close your local client (Ctrl-C). Server stays up; it'll fail to find a peer and restart-loop until you bring a client back.
+
+To fully shut it down:
+```bash
+ssh ZenithOfVastness 'sudo systemctl stop maskanya-olcrtc-bridge'
+# (optional, prevent next-boot start:)
+ssh ZenithOfVastness 'sudo systemctl disable maskanya-olcrtc-bridge'
+```
+
+## Multiple clients / devices
+
+**v0 supports only ONE active client at a time.** The server matches a single `client_id` (from `/etc/maskanya/olcrtc.env`); any other client gets `sid=N rejected: client_id mismatch` from upstream. Same `client_id` from two devices would race and corrupt the stream.
+
+### Workarounds while you wait for plan 04-04
+
+1. **Rotate** — laptop disconnects, phone connects. Simple. No infra change.
+2. **Parallel server instances, one per device.** Each instance has its own env file, its own systemd unit, its own `client_id`. They all share the same room + key, so they're not isolated trust-wise — but they ARE addressable separately. Quick recipe:
+
+   ```bash
+   # On ZOV, create a per-device env file:
+   sudo install -m 0600 -o root -g root /etc/maskanya/olcrtc.env /etc/maskanya/olcrtc-laptop.env
+   sudo install -m 0600 -o root -g root /etc/maskanya/olcrtc.env /etc/maskanya/olcrtc-phone.env
+   # Edit each to set a distinct OLCRTC_CLIENT_ID=laptop / phone
+
+   # Create a template unit (one-time):
+   #   /etc/systemd/system/maskanya-olcrtc-bridge@.service
+   # — same as the existing unit but with EnvironmentFile=/etc/maskanya/olcrtc-%i.env
+
+   sudo systemctl daemon-reload
+   sudo systemctl enable --now maskanya-olcrtc-bridge@laptop
+   sudo systemctl enable --now maskanya-olcrtc-bridge@phone
+   ```
+
+   Each device's `.env` (the one you ship to that device) sets `OLCRTC_CLIENT_ID=laptop` or `=phone` correspondingly.
+
+3. **Plan 04-04 (real fix)** — Marzban issues per-user JWTs; each JWT derives a unique room + key, so users are cryptographically isolated. That's the production multi-user story; the parallel-instance workaround above is a v0 stopgap.
+
+The Russian-recipient case has the same constraint: their `.env` and your `.env` need different `client_id` values, and ZOV needs a server instance per `client_id`. They're not your peer; they're a parallel tenant.
+
 ## What this does NOT do
 
 - **It is not a full VPN.** It's a SOCKS5 proxy. Apps that don't honor SOCKS or system proxy (some games, some IM clients, anything using raw sockets) bypass it. Use Option C (Brook tun2socks) if you need everything.

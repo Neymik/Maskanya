@@ -22,7 +22,11 @@ WorkingDirectory=/var/lib/maskanya-olcrtc
 # Point -data at the StateDirectory root; olcrtc creates its own subdirs there.
 StateDirectory=maskanya-olcrtc
 Restart=on-failure
-RestartSec=10s
+# RestartSec=60s — when no client is connected, the server cycle is
+# (join attempt → 16s timeout → exit → wait → restart). Longer wait
+# avoids hammering wbstream's API while still recovering within ~1min
+# of a client appearing.
+RestartSec=60s
 
 # Hardening (conservative for v0 — MemoryDenyWriteExecute deliberately omitted because
 # some Go GC paths allocate executable pages; re-evaluate after stable runtime.)
