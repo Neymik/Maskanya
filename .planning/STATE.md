@@ -5,14 +5,21 @@
 See: `.planning/PROJECT.md` (updated 2026-05-08)
 
 **Core value:** A Russian user can browse the open internet reliably even during a whitelist-mode regional event.
-**Current focus:** Phase 0 — PoC validation
+**Current focus:** Phase 0 — PoC validation, with Phase 4 v0 (Channel B olcRTC) running in parallel.
 
 ## Current Position
 
-Phase: 0 of 3 (PoC validation)
-Plan: 1 of 1 in current phase
-Status: In progress — VAL-01 multihop + VAL-03 fetch-relay both PASSED operator-side; awaiting RU tests
-Last activity: 2026-05-11 — VAL-03 (Channel C, YC Function) deployed and operator-tested:
+Phase: 0 of 4 (PoC validation; Phase 4 v0 PARTIAL operator-side, RU re-test pending)
+Plan: 1 of 1 in current phase (Phase 0); 1 of 5 in Phase 4 done
+Status: Phase 0 — VAL-01 multihop + VAL-03 fetch-relay PASSED operator-side, awaiting RU. Phase 4 v0 — operator-side PARTIAL (architecture proven; UDP-relay NAT-aging on JST→NL test path; RU re-test pending).
+Last activity: 2026-05-12 — Phase 4 v0 (Channel B olcRTC) operator-tested:
+  • Upstream openlibrecommunity/olcrtc vendored @ c74d171 (master, PRE refactor/universal-carrier)
+  • Cross-built linux-amd64 + darwin-arm64 via `mage cross`
+  • Deployed to ZOV: `/usr/local/bin/maskanya-olcrtc`, systemd unit `maskanya-olcrtc-bridge.service` (loaded, disabled, inactive — manual-start only)
+  • Two systemd-unit bugs found + fixed: must allow `AF_NETLINK` (pion ICE enumeration); `StateDirectory=` rejects nested paths on systemd 249
+  • End-to-end: server received tunnel request, opened upstream connection successfully; response did not return because WebRTC link flapped (TURN-relay UDP timeout on JST NAT)
+  • Verdict: PARTIAL — see `experiments/b-webrtc/RESULTS-olcrtc-v0.md`. Sustained RU operator-side test deferred alongside Phase 0 VAL-02.
+Prior activity: 2026-05-11 — VAL-03 (Channel C, YC Function) deployed and operator-tested:
   • Function `image-thumbnailer-v2` (id `d4engb6fl2nijjdfh98g`) live on nodejs22 in folder b1gamurq8prfsf4dso64
   • Public access toggled via console (CLI allow-unauthenticated-invoke needs iam.editor which our SA lacks)
   • Empirical: YC API gateway intercepts `Authorization: Bearer ...` and 403s before handler runs.
@@ -21,7 +28,7 @@ Last activity: 2026-05-11 — VAL-03 (Channel C, YC Function) deployed and opera
     Auth gate verified (bad/missing token → 401 from handler).
   Plus VAL-01 status (from prior) — multihop chain still live on MSK→ZOV, awaiting RU empirical test.
 
-Progress: [██████░░░░] 55% (VAL-01 + VAL-03 deployed and operator-tested; both await RU empirical confirmation)
+Progress: [██████░░░░] ~60% (VAL-01 + VAL-03 + Phase 4 v0 all deployed and operator-tested; all three await RU empirical confirmation)
 
 ## Performance Metrics
 
@@ -75,5 +82,7 @@ Captured in `.planning/PROJECT.md` "Key Decisions" table. Notable for execution:
 
 Full task-by-task breakdown: `.planning/phases/00-poc-validation/00-01-PLAN.md`.
 
+**Channel B (Phase 4 v0) RU re-test:** once the RU operator is set up for VAL-01/VAL-02, run `./experiments/b-webrtc/scripts/run-client.sh` after the existing `.env.olcrtc-v0` is transferred over a secure channel. ZOV-side service stays as-is (start it before the test: `ssh ZenithOfVastness 'sudo systemctl start maskanya-olcrtc-bridge'`; stop after).
+
 ---
-*State updated: 2026-05-08*
+*State updated: 2026-05-12*

@@ -16,6 +16,7 @@ Underlying design spec: [`docs/superpowers/specs/2026-05-08-three-channel-vpn-de
 - [ ] **Phase 1: Channel A hardening + nginx SNI demuxer** — production VLESS path with port-discipline-correct architecture
 - [ ] **Phase 2: ZOV bridge upstream** — `xray_yc_bridge` inbound + `bridge.maskanya.*` vhost behind the demuxer
 - [ ] **Phase 3: YC Function frontend + companion app + Marzban subscription** — Channel C end-to-end + delivery to users
+- [ ] **Phase 4: Channel B olcRTC** — operator-tested WebRTC-over-wbstream tunnel; v0 manual deploy (PARTIAL on JST→NL test path), then Ansible + companion-app integration
 
 ## Phase Details
 
@@ -106,6 +107,25 @@ Plans:
 - [ ] 03-03: Companion app v0 (Tauri, manual channel pick, SOCKS5 listener)
 - [ ] 03-04: First-install distribution channel (Yandex.Disk + GitHub Releases mirror) + end-to-end revocation test
 
+### Phase 4: Channel B olcRTC
+
+**Goal**: Stand up Channel B (WebRTC tunnel parasitizing Russian whitelisted video-call SFUs) using upstream `openlibrecommunity/olcrtc`. v0 brought forward from the original Phase 4 slot — upstream now ships working binaries, collapsing the original "build a custom pion daemon" scope into "vendor + scp + systemctl". v0 = manual operator-driven; subsequent plans add Ansible, companion-app, and per-user multi-tenancy.
+
+**Depends on**: Nothing strictly — v0 is independent of Phases 1–3. Companion-app integration (04-03) depends on Phase 3 Tauri scaffolding.
+
+**Requirements**: CHB-01-v0 (to be registered in REQUIREMENTS.md as a Phase 4 backlog item).
+
+**Success Criteria**: see `.planning/phases/04-channel-b-olcrtc-v0/04-SPEC.md`. v0 result: PARTIAL — see `experiments/b-webrtc/RESULTS-olcrtc-v0.md`.
+
+**Plans**: 1 delivered (PARTIAL); 4 in backlog
+
+Plans:
+- [x] 04-01: v0 manual deploy — vendor upstream, build, scp to ZOV, operator-test (RESULT: PARTIAL — architecture proven, sustained test deferred to RU)
+- [ ] 04-02 (backlog): `olcrtc_bridge` Ansible role (bake in AF_NETLINK + single-StateDirectory lessons)
+- [ ] 04-03 (backlog): companion-app integration + `maskanya-rtc://` URI emission
+- [ ] 04-04 (backlog): Marzban subscription template for Channel B + per-user key derivation
+- [ ] 04-05 (backlog): Telemost + SaluteJazz fallback carriers + room rotation
+
 ## Progress
 
 **Execution Order:**
@@ -117,8 +137,9 @@ Phases execute in numeric order: 0 → 1 → 2 → 3.
 | 1. Channel A hardening + demuxer | 0/4 | Blocked on Phase 0 | - |
 | 2. ZOV bridge upstream | 0/2 | Blocked on Phase 1 | - |
 | 3. YC Function + companion + sub | 0/4 | Blocked on Phase 2 | - |
+| 4. Channel B olcRTC | 1/5 | v0 PARTIAL (RU re-test pending) | 04-01: 2026-05-12 |
 
-**Total:** 0/11 plans complete. 0% milestone progress.
+**Total:** 1/16 plans complete. ~6% milestone progress.
 
 ## Rollback story
 
