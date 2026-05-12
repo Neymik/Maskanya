@@ -196,6 +196,77 @@ Many Russian users already run v2rayN or Hiddify-Next for Channel A (VLESS/Reali
 
 This is how the future companion app (plan 04-03) will look — single UI, switchable between Channel A and Channel B.
 
+### Recipient instructions — Android (via Termux)
+
+Android doesn't run native binaries directly, but [Termux](https://termux.dev) provides a real arm64 Linux userspace inside its app sandbox. Static Go binaries like olcrtc Just Run in there.
+
+The trick is then combining it with a SOCKS5-aware VPN consumer app (V2RayNG, Hiddify-Next, SagerNet) that uses Android's `VpnService` API to turn the local SOCKS5 listener into a system-wide TUN — so all the phone's apps route through olcrtc transparently.
+
+Send the recipient:
+- `olcrtc-linux-arm64` (~26 MB) — most modern Android phones are arm64
+- The `.env.olcrtc-v0` contents
+
+Their setup:
+```bash
+# 1. Install Termux from F-Droid (NOT Play Store — that one is abandoned)
+#    Also install F-Droid version of "Termux:API" if you want notifications.
+# 2. First Termux launch:
+pkg update && pkg upgrade -y
+termux-setup-storage              # grant the popup; gives access to /sdcard
+
+# 3. Transfer files. Easiest:
+#    - On your computer: pip install magic-wormhole && wormhole send olcrtc-linux-arm64
+#    - On phone in Termux: pkg install python && pip install magic-wormhole && wormhole receive <code>
+#    Repeat for olcrtc.env.
+# OR copy the files to the phone via USB/AirDroid first, then in Termux:
+#    cp /sdcard/Download/olcrtc-linux-arm64 ~/olcrtc
+#    cp /sdcard/Download/olcrtc.env ~/
+
+# 4. Make it runnable + start client:
+mkdir -p ~/maskanya && cd ~/maskanya
+mv ~/olcrtc-linux-arm64 ./olcrtc && chmod +x olcrtc
+mv ~/olcrtc.env ./
+source olcrtc.env
+./olcrtc \
+  -mode cnc \
+  -carrier "$OLCRTC_CARRIER" \
+  -transport "$OLCRTC_TRANSPORT" \
+  -id "$OLCRTC_ROOM_ID" \
+  -client-id "$OLCRTC_CLIENT_ID" \
+  -key "$OLCRTC_KEY" \
+  -link direct \
+  -dns 1.1.1.1:53 \
+  -data ./data \
+  -socks-host 127.0.0.1 \
+  -socks-port 1080
+# Leave this Termux session running (use Termux session tabs).
+```
+
+Then in a SOCKS5-aware VPN consumer (install from F-Droid):
+- **V2RayNG**: ☰ → Servers → ➕ → "Manual input [VLESS]" — wait, choose "SOCKS" — Address `127.0.0.1` Port `1080`. Tap → "v" to activate. Android shows a VPN profile prompt — accept. Now all phone traffic routes through olcrtc.
+- **Hiddify-Next**: Add profile → Type SOCKS5 → `socks5://127.0.0.1:1080` → activate.
+- **SagerNet / NekoBox**: similar SOCKS outbound config.
+
+Verify in any browser: visit `https://ifconfig.me` → should show ZOV's NL IP.
+
+**Two caveats with Android:**
+- Termux + the VPN app must both stay running. Android's battery optimizer aggressively kills background apps; disable optimization for both in Settings → Apps.
+- When the phone screen locks for long enough, the cellular radio can drop the WebRTC link's UDP keepalives. The olcrtc client doesn't always recover gracefully. Expect occasional reconnects.
+
+**Alternative — `olcbox`:** the community has a packaged Android wrapper at [alananisimov/olcbox](https://github.com/alananisimov/olcbox). It's a single-APK install, no Termux required. **But:** we don't control it, can't audit the build supply chain, project activity is uneven. Riskier than the Termux DIY route. Mention to recipients but lean toward Termux for anyone security-sensitive.
+
+### iOS — NOT supported in v0
+
+The honest answer: iOS users cannot use Channel B in v0. iOS has no Termux equivalent — no way to run arbitrary binaries without jailbreaking — and:
+
+- **App Store**: an explicit "bypass Russian censorship via parasitizing whitelisted Russian services" app would not pass review. Not happening.
+- **Sideloading via AltStore / Sideloadly**: works technically; requires a paid Apple Developer account ($99/yr) refreshing certificates every year, or the free tier refreshing every 7 days. Operationally fragile, especially for non-technical users.
+- **LAN-tethered (olcrtc on a home device + iPhone SOCKS5 to local IP)**: works at home only, useless when traveling or on cellular. Not a real mobile VPN.
+
+**What iOS users should actually do:** use **Channel A (VLESS+Reality)** via existing app-store iOS clients like [Shadowrocket](https://apps.apple.com/app/shadowrocket/id932747118) (paid, ~$3), [FoXray](https://apps.apple.com/app/foxray/id6448898396) (free), [Streisand](https://apps.apple.com/app/streisand/id6450534064) (free). The parent design spec explicitly anticipates this — Channel B is desktop-side; mobile use is best-effort via existing VLESS clients for Channel A only.
+
+Real Channel B iOS support would require building a native iOS client around upstream's gomobile bindings, plus solving the distribution problem (sideloading or alternative-app-store route). That's a separate, much larger phase — not in the Phase 4 backlog.
+
 ### What if the link doesn't come up for them
 
 Common failure modes for the recipient:
