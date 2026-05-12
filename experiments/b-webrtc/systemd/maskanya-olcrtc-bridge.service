@@ -1,0 +1,44 @@
+[Unit]
+Description=Maskanya Channel B bridge (olcrtc server, wbstream/datachannel)
+Documentation=https://github.com/openlibrecommunity/olcrtc
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/maskanya/olcrtc.env
+ExecStart=/usr/local/bin/maskanya-olcrtc \
+  -mode srv \
+  -carrier ${OLCRTC_CARRIER} \
+  -transport ${OLCRTC_TRANSPORT} \
+  -id ${OLCRTC_ROOM_ID} \
+  -client-id ${OLCRTC_CLIENT_ID} \
+  -key ${OLCRTC_KEY} \
+  -link direct \
+  -dns 1.1.1.1:53 \
+  -data /var/lib/maskanya-olcrtc/data
+WorkingDirectory=/var/lib/maskanya-olcrtc
+# StateDirectory creates BOTH the parent and the data/ subdir under it,
+# owned by the DynamicUser. The binary expects -data /var/lib/maskanya-olcrtc/data.
+StateDirectory=maskanya-olcrtc maskanya-olcrtc/data
+Restart=on-failure
+RestartSec=10s
+
+# Hardening (conservative for v0 — MemoryDenyWriteExecute deliberately omitted because
+# some Go GC paths allocate executable pages; re-evaluate after stable runtime.)
+DynamicUser=yes
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=true
+RestrictRealtime=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target
