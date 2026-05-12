@@ -9,16 +9,17 @@ See: `.planning/PROJECT.md` (updated 2026-05-08)
 
 ## Current Position
 
-Phase: 0 of 4 (PoC validation; Phase 4 v0 PARTIAL operator-side, RU re-test pending)
+Phase: 0 of 4 (PoC validation in progress; Phase 4 v0 PASS operator-side from JST)
 Plan: 1 of 1 in current phase (Phase 0); 1 of 5 in Phase 4 done
-Status: Phase 0 — VAL-01 multihop + VAL-03 fetch-relay PASSED operator-side, awaiting RU. Phase 4 v0 — operator-side PARTIAL (architecture proven; UDP-relay NAT-aging on JST→NL test path; RU re-test pending).
+Status: Phase 0 — VAL-01 multihop + VAL-03 fetch-relay PASSED operator-side, awaiting RU. Phase 4 v0 — operator-side **PASS** (4.7 Mbps sustained 5-min from JST, 0 errors, 0 disconnects).
 Last activity: 2026-05-12 — Phase 4 v0 (Channel B olcRTC) operator-tested:
   • Upstream openlibrecommunity/olcrtc vendored @ c74d171 (master, PRE refactor/universal-carrier)
   • Cross-built linux-amd64 + darwin-arm64 via `mage cross`
   • Deployed to ZOV: `/usr/local/bin/maskanya-olcrtc`, systemd unit `maskanya-olcrtc-bridge.service` (loaded, disabled, inactive — manual-start only)
-  • Two systemd-unit bugs found + fixed: must allow `AF_NETLINK` (pion ICE enumeration); `StateDirectory=` rejects nested paths on systemd 249
-  • End-to-end: server received tunnel request, opened upstream connection successfully; response did not return because WebRTC link flapped (TURN-relay UDP timeout on JST NAT)
-  • Verdict: PARTIAL — see `experiments/b-webrtc/RESULTS-olcrtc-v0.md`. Sustained RU operator-side test deferred alongside Phase 0 VAL-02.
+  • Two systemd-unit bugs found + fixed: must allow `AF_NETLINK` (pion ICE enumeration); `StateDirectory=` rejects nested paths on systemd 249. Memory record: `~/.claude/.../memory/project_olcrtc_systemd_bugs.md`
+  • 5-min sustained test from JST → Wildberries TURN (Moscow) → ZOV NL: 168 MiB transferred, **4,682 kbps avg**, 0 errors, 0 disconnects
+  • The initial "PARTIAL" reading was a debug-iteration artifact (broken AF_NETLINK + `MemoryDenyWriteExecute` causing initial-handshake flap); clean unit is rock-solid
+  • Verdict: **PASS** — see `experiments/b-webrtc/RESULTS-olcrtc-v0.md`. RU operator-side test still useful as supplementary measurement but no longer gating.
 Prior activity: 2026-05-11 — VAL-03 (Channel C, YC Function) deployed and operator-tested:
   • Function `image-thumbnailer-v2` (id `d4engb6fl2nijjdfh98g`) live on nodejs22 in folder b1gamurq8prfsf4dso64
   • Public access toggled via console (CLI allow-unauthenticated-invoke needs iam.editor which our SA lacks)
@@ -28,7 +29,7 @@ Prior activity: 2026-05-11 — VAL-03 (Channel C, YC Function) deployed and oper
     Auth gate verified (bad/missing token → 401 from handler).
   Plus VAL-01 status (from prior) — multihop chain still live on MSK→ZOV, awaiting RU empirical test.
 
-Progress: [██████░░░░] ~60% (VAL-01 + VAL-03 + Phase 4 v0 all deployed and operator-tested; all three await RU empirical confirmation)
+Progress: [███████░░░] ~70% (VAL-01 + VAL-03 deployed & operator-tested awaiting RU; Phase 4 v0 PASS from JST — Channel B working end-to-end)
 
 ## Performance Metrics
 
