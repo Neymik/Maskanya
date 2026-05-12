@@ -1,0 +1,5 @@
+Source: https://github.com/openlibrecommunity/olcrtc
+Commit: c74d1717bbaaeda2f3d614f1342473733faa9ad6
+Date:   2026-05-11 17:40:55 +0300
+Pinned: 2026-05-12 (v0 manual deploy phase)
+Note:   Pinned PRE the refactor/universal-carrier merge; do not auto-bump.
