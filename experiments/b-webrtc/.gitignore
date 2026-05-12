@@ -1,0 +1,6 @@
+# Generated artifacts — never commit
+.env.olcrtc-v0
+.env.olcrtc-*
+build/
+*.log
+RESULTS-private.md
