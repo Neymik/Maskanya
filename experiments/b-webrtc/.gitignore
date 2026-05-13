@@ -2,6 +2,7 @@
 .env.olcrtc-v0
 .env.olcrtc-*
 build/
-kits/            # operator-built recipient kits contain shared secrets
+# operator-built recipient kits contain shared secrets — never commit
+kits/
 *.log
 RESULTS-private.md
