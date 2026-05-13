@@ -1,0 +1,45 @@
+[Unit]
+Description=Maskanya Channel B bridge (olcrtc server, jazz/datachannel) — SaluteJazz fallback
+Documentation=https://github.com/openlibrecommunity/olcrtc
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/maskanya/olcrtc-jazz.env
+ExecStart=/usr/local/bin/maskanya-olcrtc \
+  -mode srv \
+  -carrier ${OLCRTC_CARRIER} \
+  -transport ${OLCRTC_TRANSPORT} \
+  -id ${OLCRTC_ROOM_ID} \
+  -client-id ${OLCRTC_CLIENT_ID} \
+  -key ${OLCRTC_KEY} \
+  -link direct \
+  -dns 1.1.1.1:53 \
+  -data /var/lib/maskanya-olcrtc-jazz \
+  -vp8-fps 25 \
+  -vp8-batch 1
+WorkingDirectory=/var/lib/maskanya-olcrtc-jazz
+StateDirectory=maskanya-olcrtc-jazz
+Restart=on-failure
+# See memory/project_olcrtc_systemd_bugs.md — RestartSec=60s avoids hammering
+# the carrier API when no client is connected.
+RestartSec=60s
+
+# Hardening — MUST include AF_NETLINK (see memory/project_olcrtc_systemd_bugs.md).
+DynamicUser=yes
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+RestrictNamespaces=true
+RestrictRealtime=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target
